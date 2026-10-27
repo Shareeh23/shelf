@@ -1,21 +1,31 @@
-# Next.js template
+# YouTube Knowledge Base
 
-This is a Next.js template with shadcn/ui.
+A personal knowledge management app that turns YouTube videos into organized, AI-generated Markdown notes.
 
-## Adding components
+## Tech Stack
 
-To add components to your app, run the following command:
+- Next.js
+- TypeScript
+- Tailwind CSS v4
+- shadcn/ui
+- SQLite
+- Drizzle ORM
+- Better Auth
+- Gemini API
+
+## Getting Started
+
+Install dependencies:
 
 ```bash
-npx shadcn@latest add button
+pnpm install
 ```
 
-This will place the ui components in the `components` directory.
+Start the development server:
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
+```bash
+pnpm dev
 ```
+
+Open http://localhost:3000 to view the app.
+
