@@ -32,7 +32,12 @@ pnpm-debug.log*
 .env*
 !.env.example
 
-#drizzle
+# Database
+sqlite.db
+*.sqlite
+*.sqlite3
+
+# Drizzle migrations
 /drizzle
 
 # vercel
