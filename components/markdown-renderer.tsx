@@ -16,29 +16,24 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               {children}
             </h1>
           ),
-
           h2: ({ children }) => (
             <h2 className="mb-4 mt-10 scroll-m-20 border-b pb-2 text-2xl font-semibold tracking-tight first:mt-0">
               {children}
             </h2>
           ),
-
           h3: ({ children }) => (
             <h3 className="mb-3 mt-8 scroll-m-20 text-xl font-semibold tracking-tight">
               {children}
             </h3>
           ),
-
           h4: ({ children }) => (
             <h4 className="mb-2 mt-6 text-lg font-semibold tracking-tight">
               {children}
             </h4>
           ),
-
           p: ({ children }) => (
             <p className="mb-5 leading-7 text-muted-foreground">{children}</p>
           ),
-
           a: ({ href, children }) => (
             <a
               href={href}
@@ -49,43 +44,35 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               {children}
             </a>
           ),
-
           ul: ({ children }) => (
             <ul className="my-6 ml-6 list-disc space-y-2 [&>li]:pl-1">
               {children}
             </ul>
           ),
-
           ol: ({ children }) => (
             <ol className="my-6 ml-6 list-decimal space-y-2 [&>li]:pl-1">
               {children}
             </ol>
           ),
-
           li: ({ children }) => (
             <li className="pl-1 leading-7 text-muted-foreground">{children}</li>
           ),
-
           blockquote: ({ children }) => (
             <blockquote className="my-6 border-l-4 border-primary/40 pl-5 italic text-muted-foreground">
               {children}
             </blockquote>
           ),
-
           hr: () => <hr className="my-8 border-border" />,
-
           strong: ({ children }) => (
             <strong className="font-semibold text-foreground">
               {children}
             </strong>
           ),
-
           pre: ({ children }) => (
             <pre className="my-6 overflow-x-auto rounded-xl border bg-muted/50 p-5 font-mono text-sm leading-6">
               {children}
             </pre>
           ),
-
           code: ({ className, children, ...props }) => {
             const isBlock = Boolean(className?.includes("language-"));
 
@@ -105,25 +92,20 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               </code>
             );
           },
-
           table: ({ children }) => (
             <div className="my-6 w-full overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">{children}</table>
             </div>
           ),
-
           thead: ({ children }) => (
             <thead className="border-b bg-muted/50">{children}</thead>
           ),
-
           th: ({ children }) => (
             <th className="px-4 py-3 text-left font-semibold">{children}</th>
           ),
-
           td: ({ children }) => (
             <td className="border-t px-4 py-3">{children}</td>
           ),
-
           input: ({ ...props }) => (
             <input
               {...props}
