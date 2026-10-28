@@ -28,15 +28,41 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+export type Note = {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  date: string;
+  teaser: string;
+  content: string;
+};
+
+type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
+  selectedNoteId: string | null;
+  onSelectNote: (note: Note) => void;
+};
+
 const data = {
   user: {
     name: "Lorebase",
     email: "Your personal knowledge base",
     avatar: "/avatars/shadcn.jpg",
   },
+
   navMain: [
-    { title: "New Note", url: "/dashboard/new", view: "new", icon: <Plus /> },
-    { title: "All Notes", url: "/dashboard", view: "all", icon: <Files /> },
+    {
+      title: "New Note",
+      url: "/dashboard/new",
+      view: "new",
+      icon: <Plus />,
+    },
+    {
+      title: "All Notes",
+      url: "/dashboard",
+      view: "all",
+      icon: <Files />,
+    },
     {
       title: "Recent",
       url: "/dashboard?view=recent",
@@ -62,100 +88,275 @@ const data = {
       icon: <Trash2 />,
     },
   ],
+
   notes: [
     {
-      name: "React Server Components",
+      id: "javascript-closures",
+      name: "JavaScript Closures",
       email: "Development",
-      subject: "Understanding React Server Components",
-      date: "10:30 AM",
+      subject: "Understanding lexical scope and closures",
+      date: "Today",
       teaser:
-        "Server Components render on the server and allow you to access server-side resources without sending component JavaScript to the client. Client Components are needed for interactivity, state, and browser APIs.",
+        "Closures allow functions to retain access to variables from their outer lexical scope, even after the outer function has finished executing.",
+      content: `# JavaScript Closures
+
+A **closure** is created when a function retains access to variables from its outer lexical scope, even after the outer function has finished executing.
+
+## Example
+
+\`\`\`javascript
+function createCounter() {
+  let count = 0;
+
+  return function () {
+    count++;
+    return count;
+  };
+}
+
+const counter = createCounter();
+
+console.log(counter()); // 1
+console.log(counter()); // 2
+console.log(counter()); // 3
+\`\`\`
+
+## Key Takeaways
+
+- Inner functions can access variables from their outer functions.
+- Closures preserve access to their lexical environment.
+- Each call to \`createCounter()\` creates an independent counter.
+
+## Common Use Cases
+
+- Data privacy and encapsulation
+- Function factories
+- Event handlers
+- Maintaining state between function calls
+`,
     },
     {
-      name: "Database Indexing",
+      id: "sql-transactions",
+      name: "SQL Transactions",
       email: "Backend",
-      subject: "How B-tree indexes work",
+      subject: "Understanding ACID properties",
+      date: "Today",
+      teaser:
+        "Database transactions group operations into a single logical unit. ACID properties help ensure reliable and consistent data changes.",
+      content: `# SQL Transactions
+
+A **transaction** groups multiple database operations into a single logical unit of work.
+
+## ACID Properties
+
+- **Atomicity:** All operations succeed, or none of them do.
+- **Consistency:** A transaction preserves database rules and constraints.
+- **Isolation:** Concurrent transactions are protected from inappropriate interference.
+- **Durability:** Committed changes persist even after a system failure.
+
+## Example
+
+\`\`\`sql
+START TRANSACTION;
+
+UPDATE accounts
+SET balance = balance - 100
+WHERE id = 1;
+
+UPDATE accounts
+SET balance = balance + 100
+WHERE id = 2;
+
+COMMIT;
+\`\`\`
+
+## Rollback
+
+If an operation fails before the transaction is committed, you can roll back the changes:
+
+\`\`\`sql
+ROLLBACK;
+\`\`\`
+
+## When to Use Transactions
+
+- Transferring money between accounts
+- Updating related records
+- Maintaining data consistency across multiple operations
+`,
+    },
+    {
+      id: "react-useeffect",
+      name: "React useEffect",
+      email: "Development",
+      subject: "Synchronizing components with external systems",
       date: "Yesterday",
       teaser:
-        "Database indexes improve query performance by reducing the amount of data the database needs to scan. B-tree indexes are useful for equality comparisons, range queries, and sorting. Composite indexes follow the leftmost-prefix rule.",
+        "The useEffect hook synchronizes a React component with external systems, such as browser APIs, subscriptions, and network connections.",
+      content: `# React useEffect
+
+The \`useEffect\` hook lets a component synchronize with external systems.
+
+## Basic Example
+
+\`\`\`tsx
+import { useEffect, useState } from "react";
+
+function Example() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    document.title = \`Count: \${count}\`;
+  }, [count]);
+
+  return (
+    <button onClick={() => setCount(count + 1)}>
+      Count: {count}
+    </button>
+  );
+}
+\`\`\`
+
+## Dependency Array
+
+- No dependency array: the effect runs after every commit.
+- Empty array \`[]\`: the effect runs after the initial mount, subject to Strict Mode behavior.
+- \`[count]\`: the effect re-synchronizes when \`count\` changes.
+
+## Cleanup
+
+Effects can return a cleanup function to remove subscriptions, clear timers, or disconnect external resources.
+
+\`\`\`tsx
+useEffect(() => {
+  const timer = setInterval(() => {
+    console.log("Running...");
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, []);
+\`\`\`
+
+## Important
+
+Don't use effects for values that can be calculated directly during rendering. Use them when synchronization with an external system is necessary.
+`,
     },
     {
-      name: "HTTP Caching",
+      id: "http-status-codes",
+      name: "HTTP Status Codes",
       email: "Backend",
-      subject: "Cache-Control directives",
-      date: "Yesterday",
-      teaser:
-        "Cache-Control determines how responses can be cached. Use max-age to specify freshness lifetime, no-cache to require revalidation, and no-store to prevent storing a response. ETags can help validate cached resources.",
-    },
-    {
-      name: "TypeScript Generics",
-      email: "Development",
-      subject: "Reusable type-safe functions",
+      subject: "Understanding response status codes",
       date: "2 days ago",
       teaser:
-        "Generics allow functions, interfaces, and classes to work with different types while preserving type safety. Instead of using any, introduce a type parameter such as T to retain information about the input and output types.",
+        "HTTP status codes communicate whether a request succeeded, requires further action, or failed due to a client or server error.",
+      content: `# HTTP Status Codes
+
+HTTP status codes describe the outcome of an HTTP request.
+
+## 1xx — Informational
+
+The request has been received and processing is continuing.
+
+## 2xx — Success
+
+- **200 OK:** The request succeeded.
+- **201 Created:** A resource was created successfully.
+- **204 No Content:** The request succeeded without a response body.
+
+## 3xx — Redirection
+
+- **301 Moved Permanently:** The resource has a permanent new URL.
+- **302 Found:** The resource is temporarily available at another URL.
+- **304 Not Modified:** A cached representation can be reused.
+
+## 4xx — Client Errors
+
+- **400 Bad Request:** The request is invalid.
+- **401 Unauthorized:** Valid authentication credentials are required.
+- **403 Forbidden:** The server refuses to fulfill the request.
+- **404 Not Found:** The requested resource was not found.
+- **429 Too Many Requests:** The client has sent too many requests.
+
+## 5xx — Server Errors
+
+- **500 Internal Server Error:** An unexpected server error occurred.
+- **502 Bad Gateway:** A gateway received an invalid response from an upstream server.
+- **503 Service Unavailable:** The server cannot currently handle the request.
+
+## Best Practice
+
+Choose status codes that accurately describe the result of the operation, and return a consistent response body containing useful error information when appropriate.
+`,
     },
     {
-      name: "Learning with Active Recall",
+      id: "spaced-repetition",
+      name: "Spaced Repetition",
       email: "Learning",
-      subject: "Test yourself instead of rereading",
+      subject: "Remember more through scheduled reviews",
       date: "3 days ago",
       teaser:
-        "Active recall strengthens learning by requiring you to retrieve information from memory. After studying a concept, close your notes and explain it in your own words. Review difficult concepts more frequently.",
+        "Spaced repetition improves long-term retention by reviewing information at increasing intervals, especially when combined with active recall.",
+      content: `# Spaced Repetition
+
+**Spaced repetition** is a learning technique that schedules reviews over time rather than concentrating them into a single session.
+
+## How It Works
+
+Instead of reviewing a topic repeatedly in one sitting, revisit it at intervals.
+
+For example:
+
+1. Learn the concept today.
+2. Review it tomorrow.
+3. Review it again after three days.
+4. Review it after one week.
+5. Continue reviewing based on how well you remember it.
+
+These intervals are illustrative, not a universal schedule.
+
+## Combine It With Active Recall
+
+During each review:
+
+- Close your notes.
+- Explain the concept from memory.
+- Answer questions without looking at the answer.
+- Check your mistakes.
+- Schedule another review based on how difficult the material was.
+
+## Example: Learning React
+
+For a topic like \`useEffect\`:
+
+- Day 1: Learn its purpose and syntax.
+- Day 2: Explain dependency arrays from memory.
+- Day 4: Write an example without referring to your notes.
+- Day 7: Solve a problem involving effect cleanup.
+
+## Key Takeaway
+
+The goal isn't to reread information as often as possible. It's to retrieve it from memory at appropriate intervals and strengthen what you struggle to remember.
+`,
     },
-    {
-      name: "Atomic Habits",
-      email: "Personal Development",
-      subject: "Make habits obvious and easy",
-      date: "4 days ago",
-      teaser:
-        "Small improvements compound over time. Make desired habits obvious, attractive, easy, and satisfying. Reduce friction for good habits and increase friction for unwanted ones. Focus on building a system rather than relying entirely on motivation.",
-    },
-    {
-      name: "Express.js Middleware",
-      email: "Backend",
-      subject: "Understanding middleware execution",
-      date: "5 days ago",
-      teaser:
-        "Express middleware functions have access to the request, response, and next function. Middleware executes in registration order. Use next() to continue the chain, and ensure error-handling middleware follows the four-argument signature.",
-    },
-    {
-      name: "System Design Fundamentals",
-      email: "Architecture",
-      subject: "Scaling a web application",
-      date: "1 week ago",
-      teaser:
-        "Start with the application's requirements and identify potential bottlenecks. Consider caching, database indexing, connection pooling, load balancing, and asynchronous processing. Introduce complexity only when the requirements justify it.",
-    },
-    {
-      name: "Quran Memorization",
-      email: "Personal",
-      subject: "A consistent daily revision routine",
-      date: "1 week ago",
-      teaser:
-        "Prioritize consistency over volume. Review previously memorized passages before adding new verses. Recite from memory, check mistakes against the Mushaf, and revisit difficult passages regularly to strengthen retention.",
-    },
-    {
-      name: "Project Ideas",
-      email: "Development",
-      subject: "Ideas worth exploring",
-      date: "2 weeks ago",
-      teaser:
-        "Build projects that solve real problems and reinforce concepts you want to learn. Potential ideas include a developer knowledge base, a GitHub profile explorer, a personal finance tracker, and an AI-powered reading list. Keep the initial scope small and expand incrementally.",
-    },
-  ],
+  ] satisfies Note[],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  selectedNoteId,
+  onSelectNote,
+  ...props
+}: AppSidebarProps) {
   const searchParams = useSearchParams();
   const { setOpen } = useSidebar();
 
   const currentView = searchParams.get("view") ?? "all";
 
   const activeItem =
-    data.navMain.find((item) => item.view === currentView) ?? data.navMain[0];
+    data.navMain.find((item) => item.view === currentView) ??
+    data.navMain[1];
 
-  const [notes] = React.useState(data.notes);
+  const notes: Note[] = data.notes;
 
   return (
     <Sidebar
@@ -180,6 +381,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <BookOpen className="size-4" />
                 </div>
+
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Lorebase</span>
                   <span className="truncate text-xs">Knowledge Base</span>
@@ -203,7 +405,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       isActive={activeItem.view === item.view}
                       className="px-2.5 md:px-2"
                       render={
-                        <Link href={item.url} onClick={() => setOpen(true)} />
+                        <Link
+                          href={item.url}
+                          onClick={() => setOpen(true)}
+                        />
                       }
                     >
                       {item.icon}
@@ -237,11 +442,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               {notes.map((note) => (
                 <button
                   type="button"
-                  key={note.name}
-                  className="flex w-full flex-col items-start gap-2 border-b p-4 text-left text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  key={note.id}
+                  onClick={() => onSelectNote(note)}
+                  className={`flex w-full flex-col items-start gap-2 border-b p-4 text-left text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+                    selectedNoteId === note.id ? "bg-sidebar-accent" : ""
+                  }`}
                 >
                   <div className="flex w-full items-center gap-2">
                     <span className="truncate">{note.name}</span>
+
                     <span className="ml-auto shrink-0 text-xs text-muted-foreground">
                       {note.date}
                     </span>
