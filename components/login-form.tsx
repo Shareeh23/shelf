@@ -56,7 +56,7 @@ export function LoginForm({
         return;
       }
 
-      router.push("/");
+      router.push("/dashboard");
     } catch (err) {
       console.error(err);
       // TODO: implement flash message later
@@ -73,7 +73,7 @@ export function LoginForm({
     try {
       const { error } = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/dashboard",
       });
 
       if (error) {
