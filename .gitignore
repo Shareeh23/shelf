@@ -37,9 +37,6 @@ sqlite.db
 *.sqlite
 *.sqlite3
 
-# Drizzle migrations
-/drizzle
-
 # vercel
 .vercel
 
