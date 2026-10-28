@@ -1,17 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Archive,
   BookOpen,
   Clock,
   Files,
   Plus,
+  Save,
   Star,
   Trash2,
-  Save,
   X,
 } from "lucide-react";
 
@@ -57,6 +57,7 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   notes: Note[];
   selectedNoteId: string | null;
   isCreating: boolean;
+  isEditing: boolean;
   draft: NoteDraft;
   onSelectNote: (note: Note) => void;
   onCreateNote: () => void;
@@ -116,6 +117,7 @@ export function AppSidebar({
   notes,
   selectedNoteId,
   isCreating,
+  isEditing,
   draft,
   onSelectNote,
   onCreateNote,
@@ -178,7 +180,7 @@ export function AppSidebar({
                 {data.navMain.map((item) => {
                   const isActive =
                     item.view === "new"
-                      ? isCreating
+                      ? isCreating && !isEditing
                       : !isCreating && currentView === item.view;
 
                   if (item.view === "new") {
@@ -238,13 +240,15 @@ export function AppSidebar({
         </SidebarFooter>
       </Sidebar>
 
-      {/* Middle panel: note list or Markdown editor */}
+      {/* Middle panel: Markdown editor or note list */}
       <Sidebar collapsible="none" className="hidden min-w-0 flex-1 md:flex">
         {isCreating ? (
           <>
             <SidebarHeader className="gap-3 border-b p-4">
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-base font-semibold">New Note</h2>
+                <h2 className="text-base font-semibold">
+                  {isEditing ? "Edit Note" : "New Note"}
+                </h2>
 
                 <Button
                   type="button"
@@ -252,7 +256,7 @@ export function AppSidebar({
                   size="icon"
                   className="size-8"
                   onClick={onCancelCreate}
-                  aria-label="Cancel creating note"
+                  aria-label="Cancel editing"
                 >
                   <X className="size-4" />
                 </Button>
@@ -332,17 +336,19 @@ export function AppSidebar({
               </SidebarGroup>
             </SidebarContent>
 
-            <div className="border-t p-4">
-              <Button
-                type="button"
-                className="w-full"
-                disabled={!canSave}
-                onClick={onSaveNote}
-              >
-                <Save className="mr-2 size-4" />
-                Save Note
-              </Button>
-            </div>
+            {!isEditing && (
+              <div className="border-t p-4">
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={!canSave}
+                  onClick={onSaveNote}
+                >
+                  <Save className="mr-2 size-4" />
+                  Save Note
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <>

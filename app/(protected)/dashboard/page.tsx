@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 
 import {
@@ -8,7 +8,8 @@ import {
   type Note,
   type NoteDraft,
 } from "@/components/app-sidebar";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
+
+import { NotePreview } from "@/components/notes/note-preview";
 
 import {
   Breadcrumb,
@@ -43,6 +44,17 @@ const viewLabels: Record<string, string> = {
   trash: "Trash",
 };
 
+function createTeaser(content: string): string {
+  return (
+    content
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/[#>*_`~-]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 180) || "No content yet."
+  );
+}
+
 function createNote(draft: NoteDraft): Note {
   const content = draft.content.trim();
 
@@ -57,13 +69,7 @@ function createNote(draft: NoteDraft): Note {
       day: "numeric",
       year: "numeric",
     }),
-    teaser:
-      content
-        .replace(/```[\s\S]*?```/g, " ")
-        .replace(/[#>*_`~-]/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 180) || "No content yet.",
+    teaser: createTeaser(content),
     content,
   };
 }
@@ -74,192 +80,186 @@ export default function Page() {
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
   const [draft, setDraft] = useState<NoteDraft>(emptyDraft);
 
-  const handleCreateNote = () => {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  function resetEditor() {
+    setIsCreating(false);
+    setIsEditing(false);
+    setDraft({ ...emptyDraft });
+  }
+
+  function handleCreateNote() {
     setSelectedNote(null);
     setDraft({ ...emptyDraft });
+    setIsEditing(false);
     setIsCreating(true);
-  };
+  }
 
-  const handleCancelCreate = () => {
-    setIsCreating(false);
-    setDraft({ ...emptyDraft });
-  };
+  function handleCancelEdit() {
+    resetEditor();
+  }
 
-  const handleSaveNote = () => {
+  function handleSelectNote(note: Note) {
+    setSelectedNote(note);
+    resetEditor();
+  }
+
+  function handleEditNote() {
+    if (!selectedNote) return;
+
+    setDraft({
+      name: selectedNote.name,
+      email: selectedNote.email === "Uncategorized" ? "" : selectedNote.email,
+      subject: selectedNote.subject,
+      source: selectedNote.source,
+      content: selectedNote.content,
+    });
+
+    setIsEditing(true);
+    setIsCreating(true);
+  }
+
+  function handleSaveNote() {
     if (!draft.name.trim()) return;
 
     const note = createNote(draft);
 
     setNotes((currentNotes) => [note, ...currentNotes]);
     setSelectedNote(note);
-    setIsCreating(false);
-    setDraft({ ...emptyDraft });
-  };
 
-  const handleSelectNote = (note: Note) => {
-    setSelectedNote(note);
-    setIsCreating(false);
-  };
+    resetEditor();
+  }
+
+  function handleUpdateNote() {
+    if (!selectedNote || !draft.name.trim()) return;
+
+    const updatedNote: Note = {
+      ...selectedNote,
+      name: draft.name.trim(),
+      email: draft.email.trim() || "Uncategorized",
+      subject: draft.subject.trim(),
+      source: draft.source.trim(),
+      content: draft.content.trim(),
+      teaser: createTeaser(draft.content.trim()),
+    };
+
+    setNotes((currentNotes) =>
+      currentNotes.map((note) =>
+        note.id === updatedNote.id ? updatedNote : note,
+      ),
+    );
+
+    setSelectedNote(updatedNote);
+
+    resetEditor();
+  }
+
+  function handleDeleteNote() {
+    if (!selectedNote) return;
+
+    setNotes((currentNotes) =>
+      currentNotes.filter((note) => note.id !== selectedNote.id),
+    );
+
+    setSelectedNote(null);
+    setIsDeleteDialogOpen(false);
+
+    resetEditor();
+  }
 
   return (
     <SidebarProvider
       style={
         {
           "--sidebar-width": "350px",
-        } as React.CSSProperties
+        } as CSSProperties
       }
     >
       <AppSidebar
         notes={notes}
         selectedNoteId={selectedNote?.id ?? null}
         isCreating={isCreating}
+        isEditing={isEditing}
         draft={draft}
         onSelectNote={handleSelectNote}
         onCreateNote={handleCreateNote}
         onDraftChange={setDraft}
         onSaveNote={handleSaveNote}
-        onCancelCreate={handleCancelCreate}
+        onCancelCreate={handleCancelEdit}
       />
 
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
-          <SidebarTrigger className="-ml-1" />
+        <DashboardHeader
+          view={view}
+          isCreating={isCreating}
+          isEditing={isEditing}
+        />
 
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+        <main className="min-w-0 flex-1 overflow-y-auto p-6">
+          <NotePreview
+            selectedNote={selectedNote}
+            isCreating={isCreating}
+            isEditing={isEditing}
+            draft={draft}
+            isDeleteDialogOpen={isDeleteDialogOpen}
+            onCreateNote={handleCreateNote}
+            onEditNote={handleEditNote}
+            onCancelEdit={handleCancelEdit}
+            onUpdateNote={handleUpdateNote}
+            onDeleteNote={handleDeleteNote}
+            onDeleteDialogChange={setIsDeleteDialogOpen}
           />
-
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/dashboard">Lorebase</BreadcrumbLink>
-              </BreadcrumbItem>
-
-              <BreadcrumbSeparator className="hidden md:block" />
-
-              <BreadcrumbItem>
-                <BreadcrumbPage>
-                  {isCreating
-                    ? "New Note Preview"
-                    : (viewLabels[view] ?? "All Notes")}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </header>
-
-        <main className="min-w-0 flex-1 p-6">
-          {isCreating ? (
-            <article className="mx-auto w-full max-w-3xl">
-              <div className="mb-8 border-b pb-6">
-                <p className="mb-2 text-sm font-medium text-muted-foreground">
-                  LIVE PREVIEW
-                </p>
-
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                  {draft.name.trim() || "Untitled Note"}
-                </h1>
-
-                {draft.subject.trim() && (
-                  <p className="mt-3 text-lg text-muted-foreground">
-                    {draft.subject}
-                  </p>
-                )}
-
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  {draft.email.trim() && (
-                    <span className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      {draft.email}
-                    </span>
-                  )}
-
-                  {draft.source.trim() && (
-                    <a
-                      href={draft.source}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-primary underline underline-offset-4"
-                    >
-                      View source
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {draft.content.trim() ? (
-                <MarkdownRenderer content={draft.content} />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Your rendered Markdown will appear here as you type.
-                </p>
-              )}
-            </article>
-          ) : selectedNote ? (
-            <article className="mx-auto w-full max-w-3xl">
-              <header className="mb-8 border-b pb-6">
-                <div className="mb-4 flex flex-wrap items-center gap-2">
-                  <span className="rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                    {selectedNote.email}
-                  </span>
-
-                  <span className="text-sm text-muted-foreground">
-                    {selectedNote.date}
-                  </span>
-
-                  {selectedNote.source && (
-                    <a
-                      href={selectedNote.source}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-primary underline underline-offset-4"
-                    >
-                      Source
-                    </a>
-                  )}
-                </div>
-
-                <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                  {selectedNote.name}
-                </h1>
-
-                {selectedNote.subject && (
-                  <p className="mt-3 text-lg text-muted-foreground">
-                    {selectedNote.subject}
-                  </p>
-                )}
-              </header>
-
-              {selectedNote.content ? (
-                <MarkdownRenderer content={selectedNote.content} />
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  This note has no content yet.
-                </p>
-              )}
-            </article>
-          ) : (
-            <div className="flex min-h-[60vh] items-center justify-center">
-              <div className="max-w-sm text-center">
-                <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl border bg-muted/50">
-                  <span className="text-xl">+</span>
-                </div>
-
-                <h1 className="text-xl font-semibold">Welcome to Lorebase</h1>
-
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Your knowledge base starts here. Create a note to capture
-                  ideas, save useful information, and build your personal
-                  library.
-                </p>
-              </div>
-            </div>
-          )}
         </main>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+type DashboardHeaderProps = {
+  view: string;
+  isCreating: boolean;
+  isEditing: boolean;
+};
+
+function DashboardHeader({
+  view,
+  isCreating,
+  isEditing,
+}: DashboardHeaderProps) {
+  const pageTitle = isCreating
+    ? isEditing
+      ? "Edit Note Preview"
+      : "New Note Preview"
+    : (viewLabels[view] ?? "All Notes");
+
+  return (
+    <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
+      <SidebarTrigger className="-ml-1" />
+
+      <Separator
+        orientation="vertical"
+        className="mr-2 data-[orientation=vertical]:h-4"
+      />
+
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem className="hidden md:block">
+            <BreadcrumbLink href="/dashboard">Lorebase</BreadcrumbLink>
+          </BreadcrumbItem>
+
+          <BreadcrumbSeparator className="hidden md:block" />
+
+          <BreadcrumbItem>
+            <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+    </header>
   );
 }

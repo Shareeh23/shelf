@@ -7,39 +7,41 @@ type MarkdownRendererProps = {
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
-    <article className="mx-auto w-full max-w-3xl text-[15px] leading-7 text-foreground">
+    <article className="mx-auto w-full min-w-0 max-w-3xl wrap-break-word text-[15px] leading-7 text-foreground **:min-w-0 [&_img]:max-w-full">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 className="mb-6 mt-2 scroll-m-20 text-4xl font-bold tracking-tight">
+            <h1 className="mb-6 mt-2 scroll-m-20 wrap-break-word text-4xl font-bold tracking-tight">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-4 mt-10 scroll-m-20 border-b pb-2 text-2xl font-semibold tracking-tight first:mt-0">
+            <h2 className="mb-4 mt-10 scroll-m-20 wrap-break-word border-b pb-2 text-2xl font-semibold tracking-tight first:mt-0">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mb-3 mt-8 scroll-m-20 text-xl font-semibold tracking-tight">
+            <h3 className="mb-3 mt-8 scroll-m-20 wrap-break-word text-xl font-semibold tracking-tight">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="mb-2 mt-6 text-lg font-semibold tracking-tight">
+            <h4 className="mb-2 mt-6 wrap-break-word text-lg font-semibold tracking-tight">
               {children}
             </h4>
           ),
           p: ({ children }) => (
-            <p className="mb-5 leading-7 text-muted-foreground">{children}</p>
+            <p className="mb-5 wrap-break-word leading-7 text-muted-foreground">
+              {children}
+            </p>
           ),
           a: ({ href, children }) => (
             <a
               href={href}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-primary underline underline-offset-4 hover:opacity-80"
+              className="wrap-break-word font-medium text-primary underline underline-offset-4 hover:opacity-80"
             >
               {children}
             </a>
@@ -55,10 +57,12 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             </ol>
           ),
           li: ({ children }) => (
-            <li className="pl-1 leading-7 text-muted-foreground">{children}</li>
+            <li className="wrap-break-word pl-1 leading-7 text-muted-foreground">
+              {children}
+            </li>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="my-6 border-l-4 border-primary/40 pl-5 italic text-muted-foreground">
+            <blockquote className="my-6 wrap-break-word border-l-4 border-primary/40 pl-5 italic text-muted-foreground">
               {children}
             </blockquote>
           ),
@@ -69,7 +73,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             </strong>
           ),
           pre: ({ children }) => (
-            <pre className="my-6 overflow-x-auto rounded-xl border bg-muted/50 p-5 font-mono text-sm leading-6">
+            <pre className="my-6 max-w-full overflow-x-auto rounded-xl border bg-muted/50 p-5 font-mono text-sm leading-6">
               {children}
             </pre>
           ),
@@ -85,7 +89,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               </code>
             ) : (
               <code
-                className="rounded-md border bg-muted px-1.5 py-0.5 font-mono text-[0.875em] text-foreground"
+                className="break-all rounded-md border bg-muted px-1.5 py-0.5 font-mono text-[0.875em] text-foreground"
                 {...props}
               >
                 {children}
@@ -93,7 +97,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             );
           },
           table: ({ children }) => (
-            <div className="my-6 w-full overflow-x-auto rounded-lg border">
+            <div className="my-6 w-full max-w-full overflow-x-auto rounded-lg border">
               <table className="w-full text-sm">{children}</table>
             </div>
           ),
