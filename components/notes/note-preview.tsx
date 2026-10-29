@@ -1,4 +1,4 @@
-import type { Note, NoteDraft } from "@/components/app-sidebar";
+import type { Note, NoteDraft } from "@/types/note";
 import { MarkdownRenderer } from "@/components/notes/markdown-renderer";
 
 import { Card, CardContent } from "@/components/ui/card";
