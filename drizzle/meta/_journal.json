@@ -15,6 +15,13 @@
       "when": 1793258269413,
       "tag": "0001_create_notes_table",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793259197057,
+      "tag": "0002_replace_source_with_sources",
+      "breakpoints": true
     }
   ]
 }

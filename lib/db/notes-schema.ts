@@ -9,9 +9,15 @@ export const notes = sqliteTable(
     id: text("id").primaryKey(),
 
     title: text("title").notNull(),
+    
     category: text("category").notNull().default("General"),
+
     description: text("description").notNull().default(""),
-    source: text("source").notNull().default(""),
+
+    sources: text("sources", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
 
     content: text("content").notNull(),
 
