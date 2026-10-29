@@ -41,7 +41,7 @@ export function NotePreview({
           title={draft.name}
           category={draft.email}
           description={draft.subject}
-          source={draft.source}
+          sources={draft.sources}
           isEditing={isEditing}
           isLivePreview
           canSave={Boolean(draft.name.trim())}
@@ -71,7 +71,7 @@ export function NotePreview({
           title={selectedNote.name}
           category={selectedNote.email}
           description={selectedNote.subject}
-          source={selectedNote.source}
+          sources={selectedNote.sources}
           date={selectedNote.date}
           onEdit={onEditNote}
           onDelete={() => onDeleteDialogChange(true)}

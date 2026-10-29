@@ -9,6 +9,7 @@ import {
   Clock,
   Files,
   Plus,
+  Minus,
   Save,
   Star,
   Trash2,
@@ -39,7 +40,7 @@ export type Note = {
   name: string;
   email: string;
   subject: string;
-  source: string;
+  sources: string[];
   date: string;
   teaser: string;
   content: string;
@@ -49,7 +50,7 @@ export type NoteDraft = {
   name: string;
   email: string;
   subject: string;
-  source: string;
+  sources: string[];
   content: string;
 };
 
@@ -59,10 +60,13 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   isCreating: boolean;
   isEditing: boolean;
   draft: NoteDraft;
+  isLoading: boolean;
+  isSaving: boolean;
+  error: string | null;
   onSelectNote: (note: Note) => void;
   onCreateNote: () => void;
   onDraftChange: (draft: NoteDraft) => void;
-  onSaveNote: () => void;
+  onSaveNote: () => Promise<void>;
   onCancelCreate: () => void;
 };
 
@@ -119,6 +123,9 @@ export function AppSidebar({
   isCreating,
   isEditing,
   draft,
+  isLoading,
+  isSaving,
+  error,
   onSelectNote,
   onCreateNote,
   onDraftChange,
@@ -131,14 +138,14 @@ export function AppSidebar({
   const searchParams = useSearchParams();
   const currentView = searchParams.get("view") ?? "all";
 
-  const updateDraft = (field: keyof NoteDraft, value: string) => {
+  function updateDraft(field: keyof NoteDraft, value: string) {
     onDraftChange({
       ...draft,
       [field]: value,
     });
-  };
+  }
 
-  const canSave = draft.name.trim().length > 0;
+  const canSave = draft.name.trim().length > 0 && !isSaving;
 
   return (
     <Sidebar
@@ -163,7 +170,6 @@ export function AppSidebar({
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <BookOpen className="size-4" />
                 </div>
-
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Lorebase</span>
                   <span className="truncate text-xs">Knowledge Base</span>
@@ -172,7 +178,6 @@ export function AppSidebar({
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarHeader>
-
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent className="px-1.5 md:px-0">
@@ -234,16 +239,21 @@ export function AppSidebar({
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
-
         <SidebarFooter>
           <NavUser user={data.user} />
         </SidebarFooter>
       </Sidebar>
-
       {/* Middle panel: Markdown editor or note list */}
       <Sidebar collapsible="none" className="hidden min-w-0 flex-1 md:flex">
         {isCreating ? (
-          <>
+          <form
+            id="note-editor-form"
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void onSaveNote();
+            }}
+          >
             <SidebarHeader className="gap-3 border-b p-4">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-base font-semibold">
@@ -273,12 +283,14 @@ export function AppSidebar({
                   <Label htmlFor="note-title">Title</Label>
                   <Input
                     id="note-title"
+                    name="title"
                     placeholder="Give your note a title"
                     value={draft.name}
                     onChange={(event) =>
                       updateDraft("name", event.target.value)
                     }
                     autoFocus
+                    required
                   />
                 </div>
 
@@ -286,6 +298,7 @@ export function AppSidebar({
                   <Label htmlFor="note-category">Category</Label>
                   <Input
                     id="note-category"
+                    name="category"
                     placeholder="e.g. Development"
                     value={draft.email}
                     onChange={(event) =>
@@ -298,6 +311,7 @@ export function AppSidebar({
                   <Label htmlFor="note-description">Description</Label>
                   <Input
                     id="note-description"
+                    name="description"
                     placeholder="A short summary"
                     value={draft.subject}
                     onChange={(event) =>
@@ -307,49 +321,110 @@ export function AppSidebar({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="note-source">Source URL</Label>
-                  <Input
-                    id="note-source"
-                    type="url"
-                    placeholder="https://..."
-                    value={draft.source}
-                    onChange={(event) =>
-                      updateDraft("source", event.target.value)
-                    }
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label>Sources</Label>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        onDraftChange({
+                          ...draft,
+                          sources: [...draft.sources, ""],
+                        })
+                      }
+                    >
+                      <Plus className="mr-1 size-4" />
+                      Add source
+                    </Button>
+                  </div>
+
+                  {draft.sources.map((source, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        id={`note-source-${index}`}
+                        name={`sources[${index}]`}
+                        type="url"
+                        placeholder="https://..."
+                        value={source}
+                        onChange={(event) =>
+                          onDraftChange({
+                            ...draft,
+                            sources: draft.sources.map((item, itemIndex) =>
+                              itemIndex === index ? event.target.value : item,
+                            ),
+                          })
+                        }
+                      />
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove source ${index + 1}`}
+                        disabled={draft.sources.length === 1}
+                        onClick={() =>
+                          onDraftChange({
+                            ...draft,
+                            sources: draft.sources.filter(
+                              (_, itemIndex) => itemIndex !== index,
+                            ),
+                          })
+                        }
+                      >
+                        <Minus className="size-4" />
+                      </Button>
+                    </div>
+                  ))}
+
+                  <p className="text-xs text-muted-foreground">
+                    Add links to articles, documentation, videos, or other
+                    references.
+                  </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="note-content">Markdown content</Label>
                   <Textarea
                     id="note-content"
+                    name="content"
                     placeholder={
                       "# Heading\n\nWrite your note here...\n\n- First point\n- Second point"
                     }
                     value={draft.content}
-                    onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    onChange={(event) =>
                       updateDraft("content", event.target.value)
                     }
                     className="min-h-70 resize-y font-mono text-sm leading-6"
                   />
                 </div>
+
+                {error && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {error}
+                  </p>
+                )}
               </SidebarGroup>
             </SidebarContent>
 
-            {!isEditing && (
-              <div className="border-t p-4">
-                <Button
-                  type="button"
-                  className="w-full"
-                  disabled={!canSave}
-                  onClick={onSaveNote}
-                >
-                  <Save className="mr-2 size-4" />
-                  Save Note
-                </Button>
-              </div>
-            )}
-          </>
+            <div className="mt-auto border-t p-4">
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={!canSave || isEditing}
+              >
+                <Save className="mr-2 size-4" />
+                {isSaving ? "Saving..." : "Save Note"}
+              </Button>
+
+              {isEditing && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Editing is not connected to the API yet.
+                </p>
+              )}
+            </div>
+          </form>
         ) : (
           <>
             <SidebarHeader className="gap-3.5 border-b p-4">
@@ -363,7 +438,11 @@ export function AppSidebar({
             <SidebarContent>
               <SidebarGroup className="px-0">
                 <SidebarGroupContent>
-                  {notes.length === 0 ? (
+                  {isLoading ? (
+                    <div className="p-4 text-sm text-muted-foreground">
+                      Loading notes...
+                    </div>
+                  ) : notes.length === 0 ? (
                     <div className="p-4 text-sm text-muted-foreground">
                       No notes yet. Click New Note to create one.
                     </div>

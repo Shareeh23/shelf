@@ -1,16 +1,14 @@
 import { ExternalLink, Pencil, Save, X } from "lucide-react";
 
-import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type NotePreviewHeaderProps = {
   title: string;
   category: string;
   description: string;
-  source: string;
+  sources: string[];
   date?: string;
   isEditing?: boolean;
   isLivePreview?: boolean;
@@ -25,7 +23,7 @@ export function NotePreviewHeader({
   title,
   category,
   description,
-  source,
+  sources,
   date,
   isEditing = false,
   isLivePreview = false,
@@ -35,13 +33,25 @@ export function NotePreviewHeader({
   onSave,
   onDelete,
 }: NotePreviewHeaderProps) {
+  const validSources = sources
+    .map((source) => source.trim())
+    .filter((source) => {
+      if (!source) return false;
+
+      try {
+        const url = new URL(source);
+        return url.protocol === "https:" || url.protocol === "http:";
+      } catch {
+        return false;
+      }
+    });
+
   return (
     <header className="mb-8 space-y-5 border-b pb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
           {isLivePreview ? "Live preview" : "Note"}
         </p>
-
         {isEditing ? (
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>
@@ -67,7 +77,6 @@ export function NotePreviewHeader({
           </div>
         ) : null}
       </div>
-
       <div className="space-y-3">
         <h1 className="wrap-break-word text-3xl font-bold tracking-tight sm:text-4xl">
           {title || "Untitled Note"}
@@ -79,27 +88,36 @@ export function NotePreviewHeader({
           </p>
         )}
       </div>
-
       <div className="flex flex-wrap items-center gap-2">
         {category && <Badge variant="secondary">{category}</Badge>}
 
         {date && <span className="text-sm text-muted-foreground">{date}</span>}
-
-        {source && (
-          <a
-            href={source}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={cn(
-              buttonVariants({ variant: "link", size: "sm" }),
-              "h-auto px-0",
-            )}
-          >
-            Source
-            <ExternalLink className="ml-1 size-3.5" />
-          </a>
-        )}
       </div>
+      {validSources.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-medium">Sources</h2>
+
+          <ul className="space-y-2">
+            {validSources.map((source, index) => (
+              <li key={`${source}-${index}`}>
+                <a
+                  href={source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    buttonVariants({ variant: "link", size: "sm" }),
+                    "h-auto max-w-full justify-start gap-1 px-0 text-left",
+                  )}
+                >
+                  <span className="break-all">{source}</span>
+
+                  <ExternalLink className="size-3.5 shrink-0" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </header>
   );
 }

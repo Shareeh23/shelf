@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 
 import {
@@ -28,13 +28,15 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const emptyDraft: NoteDraft = {
-  name: "",
-  email: "",
-  subject: "",
-  source: "",
-  content: "",
-};
+function createEmptyDraft(): NoteDraft {
+  return {
+    name: "",
+    email: "",
+    subject: "",
+    sources: [""],
+    content: "",
+  };
+}
 
 const viewLabels: Record<string, string> = {
   all: "All Notes",
@@ -42,6 +44,17 @@ const viewLabels: Record<string, string> = {
   favorites: "Favorites",
   archived: "Archived",
   trash: "Trash",
+};
+
+type ApiNote = {
+  id: string;
+  title: string;
+  category: string | null;
+  description: string | null;
+  content: string;
+  sources: string[] | string | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 };
 
 function createTeaser(content: string): string {
@@ -55,23 +68,68 @@ function createTeaser(content: string): string {
   );
 }
 
-function createNote(draft: NoteDraft): Note {
-  const content = draft.content.trim();
+function formatDate(value: string | Date): string {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown date";
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function parseSources(value: ApiNote["sources"]): string[] {
+  if (Array.isArray(value)) {
+    return value.filter(
+      (source): source is string => typeof source === "string",
+    );
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (Array.isArray(parsed)) {
+      return parsed.filter(
+        (source): source is string => typeof source === "string",
+      );
+    }
+  } catch {
+    // Support existing records where sources may be stored as a single URL.
+  }
+
+  return [value];
+}
+
+function mapApiNote(apiNote: ApiNote): Note {
+  const content = apiNote.content ?? "";
 
   return {
-    id: crypto.randomUUID(),
-    name: draft.name.trim(),
-    email: draft.email.trim() || "Uncategorized",
-    subject: draft.subject.trim(),
-    source: draft.source.trim(),
-    date: new Date().toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
+    id: apiNote.id,
+    name: apiNote.title,
+    email: apiNote.category || "Uncategorized",
+    subject: apiNote.description || "",
+    sources: parseSources(apiNote.sources),
+    date: formatDate(apiNote.updatedAt ?? apiNote.createdAt),
     teaser: createTeaser(content),
     content,
   };
+}
+
+async function getErrorMessage(response: Response): Promise<string> {
+  try {
+    const body: { error?: string } = await response.json();
+    return body.error || `Request failed (${response.status})`;
+  } catch {
+    return `Request failed (${response.status})`;
+  }
 }
 
 export default function Page() {
@@ -83,31 +141,81 @@ export default function Page() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<NoteDraft>(createEmptyDraft);
 
-  const [draft, setDraft] = useState<NoteDraft>(emptyDraft);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const loadNotes = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/notes", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      const data: unknown = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("The server returned an invalid notes response.");
+      }
+
+      const loadedNotes = (data as ApiNote[]).map(mapApiNote);
+
+      setNotes(loadedNotes);
+
+      setSelectedNote((current) => {
+        if (!current) return null;
+
+        return loadedNotes.find((note) => note.id === current.id) ?? null;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load notes.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    async function fetchNotes() {
+      await loadNotes();
+    }
+
+    void fetchNotes();
+  }, [loadNotes]);
 
   function resetEditor() {
     setIsCreating(false);
     setIsEditing(false);
-    setDraft({ ...emptyDraft });
+    setDraft(createEmptyDraft());
   }
 
   function handleCreateNote() {
     setSelectedNote(null);
-    setDraft({ ...emptyDraft });
+    setDraft(createEmptyDraft());
     setIsEditing(false);
     setIsCreating(true);
+    setError(null);
   }
 
   function handleCancelEdit() {
     resetEditor();
+    setError(null);
   }
 
   function handleSelectNote(note: Note) {
     setSelectedNote(note);
     resetEditor();
+    setError(null);
   }
 
   function handleEditNote() {
@@ -117,23 +225,53 @@ export default function Page() {
       name: selectedNote.name,
       email: selectedNote.email === "Uncategorized" ? "" : selectedNote.email,
       subject: selectedNote.subject,
-      source: selectedNote.source,
+      sources:
+        selectedNote.sources.length > 0 ? [...selectedNote.sources] : [""],
       content: selectedNote.content,
     });
 
     setIsEditing(true);
     setIsCreating(true);
+    setError(null);
   }
 
-  function handleSaveNote() {
-    if (!draft.name.trim()) return;
+  async function handleSaveNote() {
+    if (!draft.name.trim() || isSaving) return;
 
-    const note = createNote(draft);
+    setIsSaving(true);
+    setError(null);
 
-    setNotes((currentNotes) => [note, ...currentNotes]);
-    setSelectedNote(note);
+    try {
+      const response = await fetch("/api/notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: draft.name.trim(),
+          category: draft.email.trim() || "Uncategorized",
+          description: draft.subject.trim(),
+          content: draft.content.trim(),
+          sources: draft.sources.map((source) => source.trim()).filter(Boolean),
+        }),
+      });
 
-    resetEditor();
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      const data: ApiNote = await response.json();
+      const createdNote = mapApiNote(data);
+
+      setNotes((currentNotes) => [createdNote, ...currentNotes]);
+      setSelectedNote(createdNote);
+
+      resetEditor();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save note.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function handleUpdateNote() {
@@ -144,11 +282,12 @@ export default function Page() {
       name: draft.name.trim(),
       email: draft.email.trim() || "Uncategorized",
       subject: draft.subject.trim(),
-      source: draft.source.trim(),
+      sources: draft.sources.map((source) => source.trim()).filter(Boolean),
       content: draft.content.trim(),
       teaser: createTeaser(draft.content.trim()),
     };
 
+    // Local-only update until a PUT/PATCH API endpoint is implemented.
     setNotes((currentNotes) =>
       currentNotes.map((note) =>
         note.id === updatedNote.id ? updatedNote : note,
@@ -156,20 +295,19 @@ export default function Page() {
     );
 
     setSelectedNote(updatedNote);
-
     resetEditor();
   }
 
   function handleDeleteNote() {
     if (!selectedNote) return;
 
+    // Local-only deletion until a DELETE API endpoint is implemented.
     setNotes((currentNotes) =>
       currentNotes.filter((note) => note.id !== selectedNote.id),
     );
 
     setSelectedNote(null);
     setIsDeleteDialogOpen(false);
-
     resetEditor();
   }
 
@@ -187,6 +325,9 @@ export default function Page() {
         isCreating={isCreating}
         isEditing={isEditing}
         draft={draft}
+        isLoading={isLoading}
+        isSaving={isSaving}
+        error={error}
         onSelectNote={handleSelectNote}
         onCreateNote={handleCreateNote}
         onDraftChange={setDraft}
@@ -202,6 +343,22 @@ export default function Page() {
         />
 
         <main className="min-w-0 flex-1 overflow-y-auto p-6">
+          {error && (
+            <div
+              role="alert"
+              className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            >
+              {error}
+              <button
+                type="button"
+                className="ml-2 underline underline-offset-4"
+                onClick={() => void loadNotes()}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
           <NotePreview
             selectedNote={selectedNote}
             isCreating={isCreating}
