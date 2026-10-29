@@ -1,32 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
+
 import { useRouter, useSearchParams } from "next/navigation";
 
-import {
-  AppSidebar,
-  type Note,
-  type NoteDraft,
-} from "@/components/app-sidebar";
-
+import { AppSidebar } from "@/components/app-sidebar";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { NotePreview } from "@/components/notes/note-preview";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
-import { Separator } from "@/components/ui/separator";
+import { belongsInView, getDisplayedNotes } from "@/lib/notes/note-filters";
 
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
+import { getErrorMessage, mapApiNote } from "@/lib/notes/note-mappers";
+
+import type { ApiNote, Note, NoteDraft, NoteStatusChanges } from "@/types/note";
 
 function createEmptyDraft(): NoteDraft {
   return {
@@ -36,108 +24,6 @@ function createEmptyDraft(): NoteDraft {
     sources: [""],
     content: "",
   };
-}
-
-const viewLabels: Record<string, string> = {
-  all: "All Notes",
-  recent: "Recent",
-  favorites: "Favorites",
-  archived: "Archived",
-  trash: "Trash",
-};
-
-type ApiNote = {
-  id: string;
-  title: string;
-  category: string | null;
-  description: string | null;
-  content: string;
-  isArchived: boolean;
-  isJunk: boolean;
-  isFavorite: boolean;
-  sources: string[] | string | null;
-  createdAt: string | Date;
-  updatedAt: string | number | Date;
-};
-
-function createTeaser(content: string): string {
-  return (
-    content
-      .replace(/`[\s\S]*?`/g, " ")
-      .replace(/[#>*_`~-]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 180) || "No content yet."
-  );
-}
-
-function formatDate(value: string | number | Date): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown date";
-  }
-
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function parseSources(value: ApiNote["sources"]): string[] {
-  if (Array.isArray(value)) {
-    return value.filter(
-      (source): source is string => typeof source === "string",
-    );
-  }
-
-  if (typeof value !== "string" || !value.trim()) {
-    return [];
-  }
-
-  try {
-    const parsed: unknown = JSON.parse(value);
-
-    if (Array.isArray(parsed)) {
-      return parsed.filter(
-        (source): source is string => typeof source === "string",
-      );
-    }
-  } catch {
-    // Support existing records where sources may be stored as a single URL.
-  }
-
-  return [value];
-}
-
-function mapApiNote(apiNote: ApiNote): Note {
-  const content = apiNote.content ?? "";
-  const timestamp = new Date(apiNote.updatedAt ?? apiNote.createdAt).getTime();
-
-  return {
-    id: apiNote.id,
-    name: apiNote.title,
-    email: apiNote.category || "Uncategorized",
-    subject: apiNote.description || "",
-    sources: parseSources(apiNote.sources),
-    date: formatDate(timestamp),
-    teaser: createTeaser(content),
-    content,
-    isArchived: apiNote.isArchived ?? false,
-    isJunk: apiNote.isJunk ?? false,
-    isFavorite: apiNote.isFavorite ?? false,
-    updatedAt: Number.isNaN(timestamp) ? 0 : timestamp,
-  };
-}
-
-async function getErrorMessage(response: Response): Promise<string> {
-  try {
-    const body: { error?: string } = await response.json();
-    return body.error || `Request failed (${response.status})`;
-  } catch {
-    return `Request failed (${response.status})`;
-  }
 }
 
 export default function Page() {
@@ -152,30 +38,36 @@ export default function Page() {
 
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
   const [draft, setDraft] = useState<NoteDraft>(createEmptyDraft);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
   const [updatingNoteId, setUpdatingNoteId] = useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  function updateNoteUrl(noteId: string | null) {
-    const params = new URLSearchParams(searchParams.toString());
+  const updateNoteUrl = useCallback(
+    (noteId: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
 
-    if (noteId) {
-      params.set("note", noteId);
-    } else {
-      params.delete("note");
-    }
+      if (noteId) {
+        params.set("note", noteId);
+      } else {
+        params.delete("note");
+      }
 
-    const query = params.toString();
+      const query = params.toString();
 
-    router.replace(query ? `/dashboard?${query}` : "/dashboard", {
-      scroll: false,
-    });
-  }
+      router.replace(query ? `/dashboard?${query}` : "/dashboard", {
+        scroll: false,
+      });
+    },
+    [router, searchParams],
+  );
 
   const loadNotes = useCallback(async () => {
     setIsLoading(true);
@@ -197,9 +89,7 @@ export default function Page() {
         throw new Error("The server returned an invalid notes response.");
       }
 
-      const loadedNotes = (data as ApiNote[]).map(mapApiNote);
-
-      setNotes(loadedNotes);
+      setNotes((data as ApiNote[]).map(mapApiNote));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load notes.");
     } finally {
@@ -208,36 +98,15 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
-    async function fetchNotes() {
+    const initializeNotes = async () => {
       await loadNotes();
-    }
+    };
 
-    void fetchNotes();
+    void initializeNotes();
   }, [loadNotes]);
 
-  function belongsInView(note: Note, targetView: string): boolean {
-    switch (targetView) {
-      case "recent":
-      case "all":
-        return !note.isArchived && !note.isJunk;
-
-      case "favorites":
-        return note.isFavorite && !note.isArchived && !note.isJunk;
-
-      case "archived":
-        return note.isArchived && !note.isJunk;
-
-      case "trash":
-        return note.isJunk;
-
-      default:
-        return !note.isArchived && !note.isJunk;
-    }
-  }
-
-  // Restore the selected note from the URL, including on a page refresh.
   useEffect(() => {
-    async function restoreSelectedNote() {
+    const syncSelectedNote = async () => {
       if (isLoading) return;
 
       if (!noteIdFromUrl) {
@@ -251,21 +120,23 @@ export default function Page() {
         setSelectedNote((current) =>
           current?.id === noteFromUrl.id ? current : noteFromUrl,
         );
-
         setIsCreating(false);
         setIsEditing(false);
       } else {
         setSelectedNote(null);
       }
-    }
+    };
 
-    void restoreSelectedNote();
+    void syncSelectedNote();
   }, [isLoading, noteIdFromUrl, notes, view]);
 
-  async function updateNoteStatus(
-    note: Note,
-    changes: Partial<Pick<Note, "isArchived" | "isJunk" | "isFavorite">>,
-  ) {
+  function resetEditor() {
+    setIsCreating(false);
+    setIsEditing(false);
+    setDraft(createEmptyDraft());
+  }
+
+  async function updateNoteStatus(note: Note, changes: NoteStatusChanges) {
     if (updatingNoteId) return;
 
     setUpdatingNoteId(note.id);
@@ -274,7 +145,9 @@ export default function Page() {
     try {
       const response = await fetch(`/api/notes/${note.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(changes),
       });
 
@@ -284,19 +157,20 @@ export default function Page() {
 
       const updatedNote = mapApiNote((await response.json()) as ApiNote);
 
-      setNotes((currentNotes) =>
-        currentNotes.map((current) =>
-          current.id === updatedNote.id ? updatedNote : current,
+      setNotes((current) =>
+        current.map((noteItem) =>
+          noteItem.id === updatedNote.id ? updatedNote : noteItem,
         ),
       );
 
-      setSelectedNote((current) => {
-        if (!current || current.id !== updatedNote.id) return current;
+      setSelectedNote((current) =>
+        !current || current.id !== updatedNote.id
+          ? current
+          : belongsInView(updatedNote, view)
+            ? updatedNote
+            : null,
+      );
 
-        return belongsInView(updatedNote, view) ? updatedNote : null;
-      });
-
-      // If the note leaves the current view, clear its selection and URL.
       if (!belongsInView(updatedNote, view)) {
         updateNoteUrl(null);
         setIsDeleteDialogOpen(false);
@@ -311,23 +185,20 @@ export default function Page() {
     }
   }
 
-  function handleToggleFavorite(note: Note) {
-    void updateNoteStatus(note, { isFavorite: !note.isFavorite });
-  }
+  const handleToggleFavorite = (note: Note) =>
+    void updateNoteStatus(note, {
+      isFavorite: !note.isFavorite,
+    });
 
-  function handleToggleArchive(note: Note) {
-    void updateNoteStatus(note, { isArchived: !note.isArchived });
-  }
+  const handleToggleArchive = (note: Note) =>
+    void updateNoteStatus(note, {
+      isArchived: !note.isArchived,
+    });
 
-  function handleToggleJunk(note: Note) {
-    void updateNoteStatus(note, { isJunk: !note.isJunk });
-  }
-
-  function resetEditor() {
-    setIsCreating(false);
-    setIsEditing(false);
-    setDraft(createEmptyDraft());
-  }
+  const handleToggleJunk = (note: Note) =>
+    void updateNoteStatus(note, {
+      isJunk: !note.isJunk,
+    });
 
   function handleCreateNote() {
     updateNoteUrl(null);
@@ -392,13 +263,12 @@ export default function Page() {
         throw new Error(await getErrorMessage(response));
       }
 
-      const data: ApiNote = await response.json();
-      const createdNote = mapApiNote(data);
+      const createdNote = mapApiNote((await response.json()) as ApiNote);
 
-      setNotes((currentNotes) => [createdNote, ...currentNotes]);
+      setNotes((current) => [createdNote, ...current]);
+
       updateNoteUrl(createdNote.id);
       setSelectedNote(createdNote);
-
       resetEditor();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save note.");
@@ -408,7 +278,9 @@ export default function Page() {
   }
 
   async function handleUpdateNote() {
-    if (!selectedNote || !draft.name.trim() || isSaving) return;
+    if (!selectedNote || !draft.name.trim() || isSaving) {
+      return;
+    }
 
     setIsSaving(true);
     setError(null);
@@ -416,7 +288,9 @@ export default function Page() {
     try {
       const response = await fetch(`/api/notes/${selectedNote.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           title: draft.name.trim(),
           category: draft.email.trim() || "General",
@@ -432,8 +306,8 @@ export default function Page() {
 
       const updatedNote = mapApiNote((await response.json()) as ApiNote);
 
-      setNotes((currentNotes) =>
-        currentNotes.map((note) =>
+      setNotes((current) =>
+        current.map((note) =>
           note.id === updatedNote.id ? updatedNote : note,
         ),
       );
@@ -462,8 +336,8 @@ export default function Page() {
         throw new Error(await getErrorMessage(response));
       }
 
-      setNotes((currentNotes) =>
-        currentNotes.filter((note) => note.id !== selectedNote.id),
+      setNotes((current) =>
+        current.filter((note) => note.id !== selectedNote.id),
       );
 
       updateNoteUrl(null);
@@ -477,12 +351,7 @@ export default function Page() {
     }
   }
 
-  const visibleNotes = notes
-    .filter((note) => belongsInView(note, view))
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-
-  const displayedNotes =
-    view === "recent" ? visibleNotes.slice(0, 10) : visibleNotes;
+  const displayedNotes = getDisplayedNotes(notes, view);
 
   return (
     <SidebarProvider
@@ -527,6 +396,7 @@ export default function Page() {
               className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
             >
               {error}
+
               <button
                 type="button"
                 className="ml-2 underline underline-offset-4"
@@ -553,47 +423,5 @@ export default function Page() {
         </main>
       </SidebarInset>
     </SidebarProvider>
-  );
-}
-
-type DashboardHeaderProps = {
-  view: string;
-  isCreating: boolean;
-  isEditing: boolean;
-};
-
-function DashboardHeader({
-  view,
-  isCreating,
-  isEditing,
-}: DashboardHeaderProps) {
-  const pageTitle = isCreating
-    ? isEditing
-      ? "Edit Note Preview"
-      : "New Note Preview"
-    : (viewLabels[view] ?? "All Notes");
-
-  return (
-    <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
-      {" "}
-      <SidebarTrigger className="-ml-1" />
-      <Separator
-        orientation="vertical"
-        className="mr-2 data-[orientation=vertical]:h-4"
-      />
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem className="hidden md:block">
-            <BreadcrumbLink href="/dashboard">Lorebase</BreadcrumbLink>
-          </BreadcrumbItem>
-
-          <BreadcrumbSeparator className="hidden md:block" />
-
-          <BreadcrumbItem>
-            <BreadcrumbPage>{pageTitle}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-    </header>
   );
 }

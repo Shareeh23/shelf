@@ -1,9 +1,9 @@
 import type { Note, NoteDraft } from "@/components/app-sidebar";
-import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { MarkdownRenderer } from "@/components/notes/markdown-renderer";
 
 import { Card, CardContent } from "@/components/ui/card";
 
-import { DeleteNoteDialog } from "@/components/notes/delete-note-dialog";
+import { DeleteNoteDialog } from "@/components/notes/note-delete-dialog";
 import { NoteEmptyState } from "@/components/notes/note-empty-state";
 import { NotePreviewHeader } from "@/components/notes/note-preview-header";
 

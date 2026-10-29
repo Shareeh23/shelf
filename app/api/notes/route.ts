@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { db } from "@/lib/db";
 import { notes } from "@/lib/db/notes-schema";
 import { createNoteSchema } from "@/lib/schema/notes";

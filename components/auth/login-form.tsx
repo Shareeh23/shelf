@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { loginSchema, type LoginValues } from "@/lib/schema/auth";
-import { authClient } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth/auth-client";
 
 import { Button } from "@/components/ui/button";
 import {

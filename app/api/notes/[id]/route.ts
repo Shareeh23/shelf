@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/auth";
 import { db } from "@/lib/db";
 import { notes } from "@/lib/db/notes-schema";
 import { createNoteSchema } from "@/lib/schema/notes";
@@ -20,10 +20,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     });
 
     if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
@@ -33,10 +30,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     const result = updateNoteSchema.safeParse(body);
@@ -72,19 +66,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     const [updatedNote] = await db
       .update(notes)
       .set(changes)
-      .where(
-        and(
-          eq(notes.id, id),
-          eq(notes.userId, session.user.id),
-        ),
-      )
+      .where(and(eq(notes.id, id), eq(notes.userId, session.user.id)))
       .returning();
 
     if (!updatedNote) {
-      return NextResponse.json(
-        { error: "Note not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
     return NextResponse.json(updatedNote);
@@ -98,39 +84,25 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: RouteContext,
-) {
+export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
     });
 
     if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
 
     const [deletedNote] = await db
       .delete(notes)
-      .where(
-        and(
-          eq(notes.id, id),
-          eq(notes.userId, session.user.id),
-        ),
-      )
+      .where(and(eq(notes.id, id), eq(notes.userId, session.user.id)))
       .returning({ id: notes.id });
 
     if (!deletedNote) {
-      return NextResponse.json(
-        { error: "Note not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
     return new NextResponse(null, { status: 204 });
