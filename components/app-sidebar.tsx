@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Archive,
+  ArchiveRestore,
   BookOpen,
   Clock,
   Files,
@@ -12,8 +13,10 @@ import {
   Minus,
   Save,
   Star,
-  Trash2,
   X,
+  ArchiveX,
+  Undo2,
+  FolderTree,
 } from "lucide-react";
 
 import { NavUser } from "@/components/nav-user";
@@ -30,6 +33,12 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +53,10 @@ export type Note = {
   date: string;
   teaser: string;
   content: string;
+  isArchived: boolean;
+  isJunk: boolean;
+  isFavorite: boolean;
+  updatedAt: number;
 };
 
 export type NoteDraft = {
@@ -67,7 +80,12 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   onCreateNote: () => void;
   onDraftChange: (draft: NoteDraft) => void;
   onSaveNote: () => Promise<void>;
+  onUpdateNote: () => Promise<void>;
   onCancelCreate: () => void;
+  updatingNoteId: string | null;
+  onToggleFavorite: (note: Note) => void;
+  onToggleArchive: (note: Note) => void;
+  onToggleJunk: (note: Note) => void;
 };
 
 const data = {
@@ -76,7 +94,6 @@ const data = {
     email: "Your personal knowledge base",
     avatar: "/avatars/shadcn.jpg",
   },
-
   navMain: [
     {
       title: "New Note",
@@ -89,6 +106,12 @@ const data = {
       url: "/dashboard",
       view: "all",
       icon: <Files />,
+    },
+    {
+      title: "Categories",
+      url: "/dashboard?view=categories",
+      view: "categories",
+      icon: <FolderTree />,
     },
     {
       title: "Recent",
@@ -109,10 +132,10 @@ const data = {
       icon: <Archive />,
     },
     {
-      title: "Trash",
+      title: "Junk",
       url: "/dashboard?view=trash",
       view: "trash",
-      icon: <Trash2 />,
+      icon: <ArchiveX />,
     },
   ],
 };
@@ -130,13 +153,22 @@ export function AppSidebar({
   onCreateNote,
   onDraftChange,
   onSaveNote,
+  onUpdateNote,
   onCancelCreate,
+  updatingNoteId,
+  onToggleFavorite,
+  onToggleArchive,
+  onToggleJunk,
   ...props
 }: AppSidebarProps) {
   const { setOpen } = useSidebar();
 
   const searchParams = useSearchParams();
   const currentView = searchParams.get("view") ?? "all";
+
+  const [expandedCategories, setExpandedCategories] = React.useState<
+    Record<string, number>
+  >({});
 
   function updateDraft(field: keyof NoteDraft, value: string) {
     onDraftChange({
@@ -146,6 +178,25 @@ export function AppSidebar({
   }
 
   const canSave = draft.name.trim().length > 0 && !isSaving;
+
+  const notesByCategory = React.useMemo(() => {
+    const groups = new Map<string, Note[]>();
+
+    for (const note of notes) {
+      const category = note.email.trim().toLowerCase() || "general";
+      const categoryNotes = groups.get(category) ?? [];
+
+      categoryNotes.push(note);
+      groups.set(category, categoryNotes);
+    }
+
+    return Array.from(groups.entries())
+      .map(([category, categoryNotes]) => ({
+        category,
+        notes: categoryNotes.sort((a, b) => b.updatedAt - a.updatedAt),
+      }))
+      .sort((a, b) => a.category.localeCompare(b.category));
+  }, [notes]);
 
   return (
     <Sidebar
@@ -170,6 +221,7 @@ export function AppSidebar({
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <BookOpen className="size-4" />
                 </div>
+
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Lorebase</span>
                   <span className="truncate text-xs">Knowledge Base</span>
@@ -178,6 +230,7 @@ export function AppSidebar({
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarHeader>
+
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent className="px-1.5 md:px-0">
@@ -239,11 +292,13 @@ export function AppSidebar({
             </SidebarGroupContent>
           </SidebarGroup>
         </SidebarContent>
+
         <SidebarFooter>
           <NavUser user={data.user} />
         </SidebarFooter>
       </Sidebar>
-      {/* Middle panel: Markdown editor or note list */}
+
+      {/* Middle panel: Markdown editor, categories, or note list */}
       <Sidebar collapsible="none" className="hidden min-w-0 flex-1 md:flex">
         {isCreating ? (
           <form
@@ -251,7 +306,12 @@ export function AppSidebar({
             className="flex min-h-0 flex-1 flex-col"
             onSubmit={(event) => {
               event.preventDefault();
-              void onSaveNote();
+
+              if (isEditing) {
+                void onUpdateNote();
+              } else {
+                void onSaveNote();
+              }
             }}
           >
             <SidebarHeader className="gap-3 border-b p-4">
@@ -409,27 +469,152 @@ export function AppSidebar({
             </SidebarContent>
 
             <div className="mt-auto border-t p-4">
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!canSave || isEditing}
-              >
+              <Button type="submit" className="w-full" disabled={!canSave}>
                 <Save className="mr-2 size-4" />
-                {isSaving ? "Saving..." : "Save Note"}
+                {isSaving
+                  ? isEditing
+                    ? "Updating..."
+                    : "Saving..."
+                  : isEditing
+                    ? "Update Note"
+                    : "Save Note"}
               </Button>
-
-              {isEditing && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Editing is not connected to the API yet.
-                </p>
-              )}
             </div>
           </form>
+        ) : currentView === "categories" ? (
+          <>
+            <SidebarHeader className="gap-3.5 border-b p-4">
+              <div className="text-base font-medium text-foreground">
+                Categories
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Browse notes by category.
+              </p>
+            </SidebarHeader>
+
+            <SidebarContent>
+              <SidebarGroup className="px-2">
+                {isLoading ? (
+                  <p className="p-3 text-sm text-muted-foreground">
+                    Loading categories...
+                  </p>
+                ) : notesByCategory.length === 0 ? (
+                  <p className="p-3 text-sm text-muted-foreground">
+                    No categories yet.
+                  </p>
+                ) : (
+                  <Accordion multiple className="w-full">
+                    {notesByCategory.map(
+                      ({ category, notes: categoryNotes }) => {
+                        const visibleCount = Math.min(
+                          expandedCategories[category] ?? 5,
+                          categoryNotes.length,
+                        );
+
+                        const hasMore = visibleCount < categoryNotes.length;
+                        const canShowFewer = visibleCount > 5;
+
+                        return (
+                          <AccordionItem key={category} value={category}>
+                            <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <span className="capitalize">{category}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {categoryNotes.length}
+                                </span>
+                              </span>
+                            </AccordionTrigger>
+
+                            <AccordionContent className="pb-2">
+                              <div className="space-y-1 pl-3">
+                                {categoryNotes
+                                  .slice(0, visibleCount)
+                                  .map((note) => (
+                                    <button
+                                      key={note.id}
+                                      type="button"
+                                      className={`block w-full truncate rounded-md px-3 py-2 text-left text-sm hover:bg-sidebar-accent ${
+                                        selectedNoteId === note.id
+                                          ? "bg-sidebar-accent"
+                                          : ""
+                                      }`}
+                                      onClick={() => onSelectNote(note)}
+                                      title={note.name}
+                                    >
+                                      {note.name}
+                                    </button>
+                                  ))}
+
+                                {(hasMore || canShowFewer) && (
+                                  <div className="flex gap-1 px-3 pt-1">
+                                    {hasMore && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-7"
+                                        aria-label={`Show 5 more ${category} notes`}
+                                        title="Show 5 more"
+                                        onClick={() =>
+                                          setExpandedCategories((current) => ({
+                                            ...current,
+                                            [category]: Math.min(
+                                              (current[category] ?? 5) + 5,
+                                              categoryNotes.length,
+                                            ),
+                                          }))
+                                        }
+                                      >
+                                        <Plus className="size-4" />
+                                      </Button>
+                                    )}
+
+                                    {canShowFewer && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-7"
+                                        aria-label={`Show 5 fewer ${category} notes`}
+                                        title="Show 5 fewer"
+                                        onClick={() =>
+                                          setExpandedCategories((current) => ({
+                                            ...current,
+                                            [category]: Math.max(
+                                              5,
+                                              (current[category] ?? 5) - 5,
+                                            ),
+                                          }))
+                                        }
+                                      >
+                                        <Minus className="size-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        );
+                      },
+                    )}
+                  </Accordion>
+                )}
+              </SidebarGroup>
+            </SidebarContent>
+          </>
         ) : (
           <>
             <SidebarHeader className="gap-3.5 border-b p-4">
               <div className="text-base font-medium text-foreground">
-                All Notes
+                {{
+                  all: "All Notes",
+                  recent: "Recent",
+                  favorites: "Favorites",
+                  archived: "Archived",
+                  trash: "Junk",
+                }[currentView] ?? "All Notes"}
               </div>
 
               <SidebarInput placeholder="Search notes..." />
@@ -444,37 +629,120 @@ export function AppSidebar({
                     </div>
                   ) : notes.length === 0 ? (
                     <div className="p-4 text-sm text-muted-foreground">
-                      No notes yet. Click New Note to create one.
+                      No notes in this view.
                     </div>
                   ) : (
-                    notes.map((note) => (
-                      <button
-                        type="button"
-                        key={note.id}
-                        onClick={() => onSelectNote(note)}
-                        className={`flex w-full flex-col items-start gap-2 border-b p-4 text-left text-sm leading-tight last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-                          selectedNoteId === note.id ? "bg-sidebar-accent" : ""
-                        }`}
-                      >
-                        <div className="flex w-full items-center gap-2">
-                          <span className="truncate font-medium">
-                            {note.name}
-                          </span>
+                    notes.map((note) => {
+                      const isUpdating = updatingNoteId === note.id;
 
-                          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                            {note.date}
-                          </span>
+                      const archiveLabel = note.isArchived
+                        ? "Restore from archive"
+                        : "Archive note";
+
+                      const junkLabel = note.isJunk
+                        ? "Restore from Junk"
+                        : "Move to Junk";
+
+                      return (
+                        <div
+                          key={note.id}
+                          className={`border-b p-3 last:border-b-0 hover:bg-sidebar-accent/50 ${
+                            selectedNoteId === note.id
+                              ? "bg-sidebar-accent"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onSelectNote(note)}
+                              className="flex min-w-0 flex-1 flex-col items-start gap-2 text-left text-sm leading-tight"
+                            >
+                              <span className="w-full truncate font-medium">
+                                {note.name}
+                              </span>
+
+                              {note.subject && (
+                                <span className="w-full truncate font-medium">
+                                  {note.subject}
+                                </span>
+                              )}
+
+                              <span className="line-clamp-2 w-full whitespace-normal text-xs text-muted-foreground">
+                                {note.teaser || "No description"}
+                              </span>
+
+                              <span className="text-xs text-muted-foreground">
+                                {note.date}
+                              </span>
+                            </button>
+
+                            <div className="flex shrink-0 flex-col items-center gap-0.5">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                aria-label={
+                                  note.isFavorite
+                                    ? "Remove from Favorites"
+                                    : "Add to Favorites"
+                                }
+                                title={
+                                  note.isFavorite
+                                    ? "Remove from Favorites"
+                                    : "Add to Favorites"
+                                }
+                                disabled={isUpdating}
+                                onClick={() => onToggleFavorite(note)}
+                              >
+                                <Star
+                                  className={`size-4 ${
+                                    note.isFavorite
+                                      ? "fill-current text-yellow-500"
+                                      : ""
+                                  }`}
+                                />
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                aria-label={archiveLabel}
+                                title={archiveLabel}
+                                disabled={isUpdating}
+                                onClick={() => onToggleArchive(note)}
+                              >
+                                {note.isArchived ? (
+                                  <ArchiveRestore className="size-4" />
+                                ) : (
+                                  <Archive className="size-4" />
+                                )}
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                aria-label={junkLabel}
+                                title={junkLabel}
+                                disabled={isUpdating}
+                                onClick={() => onToggleJunk(note)}
+                              >
+                                {note.isJunk ? (
+                                  <Undo2 className="size-4" />
+                                ) : (
+                                  <ArchiveX className="size-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-
-                        {note.subject && (
-                          <span className="font-medium">{note.subject}</span>
-                        )}
-
-                        <span className="line-clamp-2 w-full whitespace-normal text-xs text-muted-foreground">
-                          {note.teaser || "No description"}
-                        </span>
-                      </button>
-                    ))
+                      );
+                    })
                   )}
                 </SidebarGroupContent>
               </SidebarGroup>

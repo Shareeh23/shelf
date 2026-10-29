@@ -74,6 +74,9 @@ export async function POST(request: Request) {
         description: result.data.description,
         content: result.data.content,
         sources: result.data.sources,
+        isArchived: result.data.isArchived,
+        isJunk: result.data.isJunk,
+        isFavorite: result.data.isFavorite,
         userId: session.user.id,
       })
       .returning();

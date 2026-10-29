@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   AppSidebar,
@@ -52,15 +52,18 @@ type ApiNote = {
   category: string | null;
   description: string | null;
   content: string;
+  isArchived: boolean;
+  isJunk: boolean;
+  isFavorite: boolean;
   sources: string[] | string | null;
   createdAt: string | Date;
-  updatedAt: string | Date;
+  updatedAt: string | number | Date;
 };
 
 function createTeaser(content: string): string {
   return (
     content
-      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/`[\s\S]*?`/g, " ")
       .replace(/[#>*_`~-]/g, "")
       .replace(/\s+/g, " ")
       .trim()
@@ -68,7 +71,7 @@ function createTeaser(content: string): string {
   );
 }
 
-function formatDate(value: string | Date): string {
+function formatDate(value: string | number | Date): string {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -110,6 +113,7 @@ function parseSources(value: ApiNote["sources"]): string[] {
 
 function mapApiNote(apiNote: ApiNote): Note {
   const content = apiNote.content ?? "";
+  const timestamp = new Date(apiNote.updatedAt ?? apiNote.createdAt).getTime();
 
   return {
     id: apiNote.id,
@@ -117,9 +121,13 @@ function mapApiNote(apiNote: ApiNote): Note {
     email: apiNote.category || "Uncategorized",
     subject: apiNote.description || "",
     sources: parseSources(apiNote.sources),
-    date: formatDate(apiNote.updatedAt ?? apiNote.createdAt),
+    date: formatDate(timestamp),
     teaser: createTeaser(content),
     content,
+    isArchived: apiNote.isArchived ?? false,
+    isJunk: apiNote.isJunk ?? false,
+    isFavorite: apiNote.isFavorite ?? false,
+    updatedAt: Number.isNaN(timestamp) ? 0 : timestamp,
   };
 }
 
@@ -133,8 +141,11 @@ async function getErrorMessage(response: Response): Promise<string> {
 }
 
 export default function Page() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+
   const view = searchParams.get("view") ?? "all";
+  const noteIdFromUrl = searchParams.get("note");
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -145,9 +156,26 @@ export default function Page() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [updatingNoteId, setUpdatingNoteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  function updateNoteUrl(noteId: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (noteId) {
+      params.set("note", noteId);
+    } else {
+      params.delete("note");
+    }
+
+    const query = params.toString();
+
+    router.replace(query ? `/dashboard?${query}` : "/dashboard", {
+      scroll: false,
+    });
+  }
 
   const loadNotes = useCallback(async () => {
     setIsLoading(true);
@@ -172,12 +200,6 @@ export default function Page() {
       const loadedNotes = (data as ApiNote[]).map(mapApiNote);
 
       setNotes(loadedNotes);
-
-      setSelectedNote((current) => {
-        if (!current) return null;
-
-        return loadedNotes.find((note) => note.id === current.id) ?? null;
-      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load notes.");
     } finally {
@@ -193,6 +215,114 @@ export default function Page() {
     void fetchNotes();
   }, [loadNotes]);
 
+  function belongsInView(note: Note, targetView: string): boolean {
+    switch (targetView) {
+      case "recent":
+      case "all":
+        return !note.isArchived && !note.isJunk;
+
+      case "favorites":
+        return note.isFavorite && !note.isArchived && !note.isJunk;
+
+      case "archived":
+        return note.isArchived && !note.isJunk;
+
+      case "trash":
+        return note.isJunk;
+
+      default:
+        return !note.isArchived && !note.isJunk;
+    }
+  }
+
+  // Restore the selected note from the URL, including on a page refresh.
+  useEffect(() => {
+    async function restoreSelectedNote() {
+      if (isLoading) return;
+
+      if (!noteIdFromUrl) {
+        setSelectedNote(null);
+        return;
+      }
+
+      const noteFromUrl = notes.find((note) => note.id === noteIdFromUrl);
+
+      if (noteFromUrl && belongsInView(noteFromUrl, view)) {
+        setSelectedNote((current) =>
+          current?.id === noteFromUrl.id ? current : noteFromUrl,
+        );
+
+        setIsCreating(false);
+        setIsEditing(false);
+      } else {
+        setSelectedNote(null);
+      }
+    }
+
+    void restoreSelectedNote();
+  }, [isLoading, noteIdFromUrl, notes, view]);
+
+  async function updateNoteStatus(
+    note: Note,
+    changes: Partial<Pick<Note, "isArchived" | "isJunk" | "isFavorite">>,
+  ) {
+    if (updatingNoteId) return;
+
+    setUpdatingNoteId(note.id);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/notes/${note.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(changes),
+      });
+
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      const updatedNote = mapApiNote((await response.json()) as ApiNote);
+
+      setNotes((currentNotes) =>
+        currentNotes.map((current) =>
+          current.id === updatedNote.id ? updatedNote : current,
+        ),
+      );
+
+      setSelectedNote((current) => {
+        if (!current || current.id !== updatedNote.id) return current;
+
+        return belongsInView(updatedNote, view) ? updatedNote : null;
+      });
+
+      // If the note leaves the current view, clear its selection and URL.
+      if (!belongsInView(updatedNote, view)) {
+        updateNoteUrl(null);
+        setIsDeleteDialogOpen(false);
+        resetEditor();
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to update note status.",
+      );
+    } finally {
+      setUpdatingNoteId(null);
+    }
+  }
+
+  function handleToggleFavorite(note: Note) {
+    void updateNoteStatus(note, { isFavorite: !note.isFavorite });
+  }
+
+  function handleToggleArchive(note: Note) {
+    void updateNoteStatus(note, { isArchived: !note.isArchived });
+  }
+
+  function handleToggleJunk(note: Note) {
+    void updateNoteStatus(note, { isJunk: !note.isJunk });
+  }
+
   function resetEditor() {
     setIsCreating(false);
     setIsEditing(false);
@@ -200,6 +330,7 @@ export default function Page() {
   }
 
   function handleCreateNote() {
+    updateNoteUrl(null);
     setSelectedNote(null);
     setDraft(createEmptyDraft());
     setIsEditing(false);
@@ -213,6 +344,7 @@ export default function Page() {
   }
 
   function handleSelectNote(note: Note) {
+    updateNoteUrl(note.id);
     setSelectedNote(note);
     resetEditor();
     setError(null);
@@ -264,6 +396,7 @@ export default function Page() {
       const createdNote = mapApiNote(data);
 
       setNotes((currentNotes) => [createdNote, ...currentNotes]);
+      updateNoteUrl(createdNote.id);
       setSelectedNote(createdNote);
 
       resetEditor();
@@ -274,42 +407,82 @@ export default function Page() {
     }
   }
 
-  function handleUpdateNote() {
-    if (!selectedNote || !draft.name.trim()) return;
+  async function handleUpdateNote() {
+    if (!selectedNote || !draft.name.trim() || isSaving) return;
 
-    const updatedNote: Note = {
-      ...selectedNote,
-      name: draft.name.trim(),
-      email: draft.email.trim() || "Uncategorized",
-      subject: draft.subject.trim(),
-      sources: draft.sources.map((source) => source.trim()).filter(Boolean),
-      content: draft.content.trim(),
-      teaser: createTeaser(draft.content.trim()),
-    };
+    setIsSaving(true);
+    setError(null);
 
-    // Local-only update until a PUT/PATCH API endpoint is implemented.
-    setNotes((currentNotes) =>
-      currentNotes.map((note) =>
-        note.id === updatedNote.id ? updatedNote : note,
-      ),
-    );
+    try {
+      const response = await fetch(`/api/notes/${selectedNote.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: draft.name.trim(),
+          category: draft.email.trim() || "General",
+          description: draft.subject.trim(),
+          sources: draft.sources.map((source) => source.trim()).filter(Boolean),
+          content: draft.content.trim(),
+        }),
+      });
 
-    setSelectedNote(updatedNote);
-    resetEditor();
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      const updatedNote = mapApiNote((await response.json()) as ApiNote);
+
+      setNotes((currentNotes) =>
+        currentNotes.map((note) =>
+          note.id === updatedNote.id ? updatedNote : note,
+        ),
+      );
+
+      setSelectedNote(updatedNote);
+      resetEditor();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update note.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  function handleDeleteNote() {
-    if (!selectedNote) return;
+  async function handleDeleteNote() {
+    if (!selectedNote || isSaving) return;
 
-    // Local-only deletion until a DELETE API endpoint is implemented.
-    setNotes((currentNotes) =>
-      currentNotes.filter((note) => note.id !== selectedNote.id),
-    );
+    setIsSaving(true);
+    setError(null);
 
-    setSelectedNote(null);
-    setIsDeleteDialogOpen(false);
-    resetEditor();
+    try {
+      const response = await fetch(`/api/notes/${selectedNote.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+      }
+
+      setNotes((currentNotes) =>
+        currentNotes.filter((note) => note.id !== selectedNote.id),
+      );
+
+      updateNoteUrl(null);
+      setSelectedNote(null);
+      setIsDeleteDialogOpen(false);
+      resetEditor();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete note.");
+    } finally {
+      setIsSaving(false);
+    }
   }
+
+  const visibleNotes = notes
+    .filter((note) => belongsInView(note, view))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const displayedNotes =
+    view === "recent" ? visibleNotes.slice(0, 10) : visibleNotes;
 
   return (
     <SidebarProvider
@@ -320,7 +493,7 @@ export default function Page() {
       }
     >
       <AppSidebar
-        notes={notes}
+        notes={displayedNotes}
         selectedNoteId={selectedNote?.id ?? null}
         isCreating={isCreating}
         isEditing={isEditing}
@@ -332,7 +505,12 @@ export default function Page() {
         onCreateNote={handleCreateNote}
         onDraftChange={setDraft}
         onSaveNote={handleSaveNote}
+        onUpdateNote={handleUpdateNote}
         onCancelCreate={handleCancelEdit}
+        updatingNoteId={updatingNoteId}
+        onToggleFavorite={handleToggleFavorite}
+        onToggleArchive={handleToggleArchive}
+        onToggleJunk={handleToggleJunk}
       />
 
       <SidebarInset>
@@ -397,13 +575,12 @@ function DashboardHeader({
 
   return (
     <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
+      {" "}
       <SidebarTrigger className="-ml-1" />
-
       <Separator
         orientation="vertical"
         className="mr-2 data-[orientation=vertical]:h-4"
       />
-
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem className="hidden md:block">
