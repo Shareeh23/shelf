@@ -9,7 +9,7 @@ export const notes = sqliteTable(
     id: text("id").primaryKey(),
 
     title: text("title").notNull(),
-    
+
     category: text("category").notNull().default("General"),
 
     description: text("description").notNull().default(""),
@@ -18,8 +18,17 @@ export const notes = sqliteTable(
       .$type<string[]>()
       .notNull()
       .default(sql`'[]'`),
-
     content: text("content").notNull(),
+
+    isArchived: integer("is_archived", { mode: "boolean" })
+      .notNull()
+      .default(false),
+
+    isJunk: integer("is_junk", { mode: "boolean" }).notNull().default(false),
+
+    isFavorite: integer("is_favorite", { mode: "boolean" })
+      .notNull()
+      .default(false),
 
     userId: text("user_id")
       .notNull()
