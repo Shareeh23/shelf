@@ -1,15 +1,47 @@
 {
-  "name": "knowledge-base",
+  "name": "shelf",
   "version": "0.0.1",
-  "type": "module",
+  "description": "Shelf is a personal knowledge management application for creating, organizing, and managing learning notes.",
+  "keywords": [
+    "notes",
+    "knowledge-management",
+    "markdown",
+    "nextjs",
+    "react",
+    "typescript",
+    "sqlite",
+    "drizzle-orm",
+    "better-auth"
+  ],
   "private": true,
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Shareeh23/shelf.git"
+  },
+  "homepage": "https://github.com/Shareeh23/shelf#readme",
+  "bugs": {
+    "url": "https://github.com/Shareeh23/shelf/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "packageManager": "pnpm@12.15.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "format:check": "prettier --check \"**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm lint && pnpm typecheck && pnpm format:check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
