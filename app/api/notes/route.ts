@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
+
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 
 import { auth } from "@/lib/auth/auth";
 import { db } from "@/lib/db";
 import { notes } from "@/lib/db/notes-schema";
 import { createNoteSchema } from "@/lib/schema/notes";
+import { getCachedUserNotes, getUserNotesCacheTag } from "@/lib/notes/cache";
 
 export async function GET() {
   try {
@@ -18,11 +20,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userNotes = await db
-      .select()
-      .from(notes)
-      .where(eq(notes.userId, session.user.id))
-      .orderBy(desc(notes.updatedAt));
+    const userNotes = await getCachedUserNotes(session.user.id);
 
     return NextResponse.json(userNotes);
   } catch (error) {
@@ -80,6 +78,9 @@ export async function POST(request: Request) {
         userId: session.user.id,
       })
       .returning();
+
+    // Invalidate the user's cached notes
+    revalidateTag(getUserNotesCacheTag(session.user.id), { expire: 0 });
 
     return NextResponse.json(createdNote, { status: 201 });
   } catch (error) {

@@ -1,10 +1,19 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-
 import { auth } from "@/lib/auth/auth";
 import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
+import { HomeSkeleton } from "@/components/home/home-skeleton";
 
-export default async function HomePage() {
+export default function HomePage() {
+  return (
+    <Suspense fallback={<HomeSkeleton />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+async function HomeContent() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -19,6 +28,7 @@ export default async function HomePage() {
           <Link href="/" className="text-xl font-bold tracking-tight">
             Lorebase<span className="text-red-600">.</span>
           </Link>
+
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <Button nativeButton={false} render={<Link href="/dashboard" />}>
@@ -147,6 +157,7 @@ function Feature({
   return (
     <div className="rounded-xl border bg-background p-6">
       <h3 className="font-semibold">{title}</h3>
+
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
         {description}
       </p>

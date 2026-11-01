@@ -1,8 +1,10 @@
 import { auth } from "@/lib/auth/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import DashboardSkeleton from "@/components/dashboard/dashboard-skeleton";
 
-export default async function ProtectedLayout({
+async function ProtectedContent({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -16,4 +18,16 @@ export default async function ProtectedLayout({
   }
 
   return <>{children}</>;
+}
+
+export default function ProtectedLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <ProtectedContent>{children}</ProtectedContent>
+    </Suspense>
+  );
 }

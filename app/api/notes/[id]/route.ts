@@ -1,11 +1,15 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+
 import { and, eq } from "drizzle-orm";
 
 import { auth } from "@/lib/auth/auth";
 import { db } from "@/lib/db";
 import { notes } from "@/lib/db/notes-schema";
 import { createNoteSchema } from "@/lib/schema/notes";
+
+import { getUserNotesCacheTag } from "@/lib/notes/cache";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -73,6 +77,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
+    // Invalidate the user's cached notes
+    revalidateTag(getUserNotesCacheTag(session.user.id), { expire: 0 });
+
     return NextResponse.json(updatedNote);
   } catch (error) {
     console.error("Failed to update note:", error);
@@ -104,6 +111,9 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     if (!deletedNote) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
+
+    // Invalidate the user's cached notes
+    revalidateTag(getUserNotesCacheTag(session.user.id), { expire: 0 });
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
