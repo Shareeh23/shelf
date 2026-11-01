@@ -7,20 +7,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { NotePreview } from "@/components/notes/note-preview";
-
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 import { belongsInView, getDisplayedNotes } from "@/lib/notes/note-filters";
-
 import { getErrorMessage, mapApiNote } from "@/lib/notes/note-mappers";
 
 import type { ApiNote, Note, NoteDraft, NoteStatusChanges } from "@/types/note";
 
 function createEmptyDraft(): NoteDraft {
   return {
-    name: "",
-    email: "",
-    subject: "",
+    title: "",
+    category: "",
+    description: "",
     sources: [""],
     content: "",
   };
@@ -225,9 +223,10 @@ export default function Page() {
     if (!selectedNote) return;
 
     setDraft({
-      name: selectedNote.name,
-      email: selectedNote.email === "Uncategorized" ? "" : selectedNote.email,
-      subject: selectedNote.subject,
+      title: selectedNote.title,
+      category:
+        selectedNote.category === "Uncategorized" ? "" : selectedNote.category,
+      description: selectedNote.description,
       sources:
         selectedNote.sources.length > 0 ? [...selectedNote.sources] : [""],
       content: selectedNote.content,
@@ -239,7 +238,7 @@ export default function Page() {
   }
 
   async function handleSaveNote() {
-    if (!draft.name.trim() || isSaving) return;
+    if (!draft.title.trim() || isSaving) return;
 
     setIsSaving(true);
     setError(null);
@@ -251,9 +250,9 @@ export default function Page() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: draft.name.trim(),
-          category: draft.email.trim() || "Uncategorized",
-          description: draft.subject.trim(),
+          title: draft.title.trim(),
+          category: draft.category.trim() || "Uncategorized",
+          description: draft.description.trim(),
           content: draft.content.trim(),
           sources: draft.sources.map((source) => source.trim()).filter(Boolean),
         }),
@@ -278,7 +277,7 @@ export default function Page() {
   }
 
   async function handleUpdateNote() {
-    if (!selectedNote || !draft.name.trim() || isSaving) {
+    if (!selectedNote || !draft.title.trim() || isSaving) {
       return;
     }
 
@@ -292,9 +291,9 @@ export default function Page() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: draft.name.trim(),
-          category: draft.email.trim() || "General",
-          description: draft.subject.trim(),
+          title: draft.title.trim(),
+          category: draft.category.trim() || "General",
+          description: draft.description.trim(),
           sources: draft.sources.map((source) => source.trim()).filter(Boolean),
           content: draft.content.trim(),
         }),

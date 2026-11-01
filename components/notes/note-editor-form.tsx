@@ -89,8 +89,8 @@ export function NoteEditorForm({
               id="note-title"
               name="title"
               placeholder="Give your note a title"
-              value={draft.name}
-              onChange={(event) => updateDraft("name", event.target.value)}
+              value={draft.title}
+              onChange={(event) => updateDraft("title", event.target.value)}
               autoFocus
               required
             />
@@ -103,8 +103,8 @@ export function NoteEditorForm({
               id="note-category"
               name="category"
               placeholder="e.g. Development"
-              value={draft.email}
-              onChange={(event) => updateDraft("email", event.target.value)}
+              value={draft.category}
+              onChange={(event) => updateDraft("category", event.target.value)}
             />
           </div>
 
@@ -115,8 +115,10 @@ export function NoteEditorForm({
               id="note-description"
               name="description"
               placeholder="A short summary"
-              value={draft.subject}
-              onChange={(event) => updateDraft("subject", event.target.value)}
+              value={draft.description}
+              onChange={(event) =>
+                updateDraft("description", event.target.value)
+              }
             />
           </div>
 
@@ -210,7 +212,7 @@ export function NoteEditorForm({
         <Button
           type="submit"
           className="w-full"
-          disabled={!draft.name.trim() || isSaving}
+          disabled={!draft.title.trim() || isSaving}
         >
           <Save className="mr-2 size-4" />
 

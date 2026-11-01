@@ -43,9 +43,9 @@ export function NoteListItem({
           className="flex h-auto min-w-0 flex-1 flex-col items-start gap-2 whitespace-normal rounded-md px-2 py-1 text-left text-sm font-normal"
           onClick={() => onSelect(note)}
         >
-          <span className="w-full truncate font-medium">{note.name} </span>
-          {note.subject && (
-            <span className="w-full truncate font-medium">{note.subject}</span>
+          <span className="w-full truncate font-medium">{note.title} </span>
+          {note.description && (
+            <span className="w-full truncate font-medium">{note.description}</span>
           )}
           <span className="line-clamp-2 w-full text-wrap text-xs text-muted-foreground">
             {note.teaser || "No description"}

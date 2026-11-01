@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useMemo, useEffect } from "react";
+
 import {
   SidebarContent,
   SidebarGroup,
@@ -35,6 +37,30 @@ export function NoteListPanel({
   onToggleArchive,
   onToggleJunk,
 }: Props) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const filteredNotes = useMemo(() => {
+    const query = debouncedQuery.trim().toLowerCase();
+
+    if (!query) return notes;
+
+    return notes.filter((note) =>
+      [note.title, note.category, note.description, note.content]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [notes, debouncedQuery]);
+
   return (
     <>
       <SidebarHeader className="gap-3.5 border-b p-4">
@@ -42,7 +68,12 @@ export function NoteListPanel({
           {viewLabels[view] ?? "All Notes"}
         </div>
 
-        <SidebarInput placeholder="Search notes..." />
+        <SidebarInput
+          className="px-2"
+          placeholder="Search notes..."
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
       </SidebarHeader>
 
       <SidebarContent>
@@ -52,12 +83,14 @@ export function NoteListPanel({
               <div className="p-4 text-sm text-muted-foreground">
                 Loading notes...
               </div>
-            ) : notes.length === 0 ? (
+            ) : filteredNotes.length === 0 ? (
               <div className="p-4 text-sm text-muted-foreground">
-                No notes in this view.
+                {searchQuery.trim()
+                  ? "No matching notes found."
+                  : "No notes in this view."}
               </div>
             ) : (
-              notes.map((note) => (
+              filteredNotes.map((note) => (
                 <NoteListItem
                   key={note.id}
                   note={note}

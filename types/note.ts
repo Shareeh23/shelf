@@ -1,38 +1,33 @@
 export type Note = {
   id: string;
-  name: string;
-  email: string;
-  subject: string;
+  title: string;
+  category: string;
+  description: string;
   sources: string[];
+  content: string;
   date: string;
   teaser: string;
-  content: string;
   isArchived: boolean;
   isJunk: boolean;
   isFavorite: boolean;
+  createdAt: number;
   updatedAt: number;
 };
 
-export type NoteDraft = {
-  name: string;
-  email: string;
-  subject: string;
-  sources: string[];
-  content: string;
+export type ApiNote = Omit<
+  Note,
+  "date" | "teaser" | "createdAt" | "updatedAt"
+> & {
+  createdAt: string | number | Date;
+  updatedAt: string | number | Date;
 };
 
-export type ApiNote = {
-  id: string;
+export type NoteDraft = {
   title: string;
-  category: string | null;
-  description: string | null;
+  category: string;
+  description: string;
+  sources: string[];
   content: string;
-  isArchived: boolean;
-  isJunk: boolean;
-  isFavorite: boolean;
-  sources: string[] | string | null;
-  createdAt: string | Date;
-  updatedAt: string | number | Date;
 };
 
 export type NoteStatusChanges = Partial<

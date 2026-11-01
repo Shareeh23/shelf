@@ -41,7 +41,7 @@ export function CategoryBrowser({
     const groups = new Map<string, Note[]>();
 
     for (const note of notes) {
-      const category = note.email.trim().toLowerCase() || "general";
+      const category = note.category.trim().toLowerCase() || "general";
 
       groups.set(category, [...(groups.get(category) ?? []), note]);
     }
@@ -110,9 +110,9 @@ export function CategoryBrowser({
                                 : ""
                             }`}
                             onClick={() => onSelectNote(note)}
-                            title={note.name}
+                            title={note.title}
                           >
-                            {note.name}
+                            {note.title}
                           </button>
                         ))}
 

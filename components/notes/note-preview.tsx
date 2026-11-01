@@ -38,13 +38,13 @@ export function NotePreview({
     return (
       <article className="mx-auto w-full max-w-3xl">
         <NotePreviewHeader
-          title={draft.name}
-          category={draft.email}
-          description={draft.subject}
+          title={draft.title}
+          category={draft.category}
+          description={draft.description}
           sources={draft.sources}
           isEditing={isEditing}
           isLivePreview
-          canSave={Boolean(draft.name.trim())}
+          canSave={Boolean(draft.title.trim())}
           onCancel={onCancelEdit}
           onSave={onUpdateNote}
         />
@@ -68,9 +68,9 @@ export function NotePreview({
     <>
       <article className="mx-auto w-full min-w-0 max-w-3xl">
         <NotePreviewHeader
-          title={selectedNote.name}
-          category={selectedNote.email}
-          description={selectedNote.subject}
+          title={selectedNote.title}
+          category={selectedNote.category}
+          description={selectedNote.description}
           sources={selectedNote.sources}
           date={selectedNote.date}
           onEdit={onEditNote}
@@ -92,7 +92,7 @@ export function NotePreview({
 
       <DeleteNoteDialog
         open={isDeleteDialogOpen}
-        noteTitle={selectedNote.name}
+        noteTitle={selectedNote.title}
         onOpenChange={onDeleteDialogChange}
         onConfirm={onDeleteNote}
       />
