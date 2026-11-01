@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { authClient } from "@/lib/auth/auth-client";
 import {
   Archive,
   ArchiveX,
@@ -26,12 +27,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-
-const user = {
-  name: "Lorebase",
-  email: "Your personal knowledge base",
-  avatar: "/avatars/shadcn.jpg",
-};
 
 const navItems = [
   {
@@ -94,6 +89,8 @@ export function SidebarNavigation({
   onCancelCreate,
 }: Props) {
   const { setOpen } = useSidebar();
+
+  const { data: session } = authClient.useSession();
 
   return (
     <Sidebar
@@ -174,7 +171,15 @@ export function SidebarNavigation({
       </SidebarContent>
 
       <SidebarFooter>
-        <NavUser user={user} />
+        {session?.user && (
+          <NavUser
+            user={{
+              name: session.user.name,
+              email: session.user.email,
+              avatar: session.user.image ?? "",
+            }}
+          />
+        )}
       </SidebarFooter>
     </Sidebar>
   );
