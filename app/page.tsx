@@ -1,8 +1,16 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 
+import { auth } from "@/lib/auth/auth";
 import { Button } from "@/components/ui/button";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  const isAuthenticated = !!session;
+
   return (
     <main className="flex min-h-svh flex-col">
       {/* Navbar */}
@@ -11,19 +19,26 @@ export default function HomePage() {
           <Link href="/" className="text-xl font-bold tracking-tight">
             Lorebase<span className="text-red-600">.</span>
           </Link>
-
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link href="/login" />}
-            >
-              Login
-            </Button>
+            {isAuthenticated ? (
+              <Button nativeButton={false} render={<Link href="/dashboard" />}>
+                Open Lorebase
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  nativeButton={false}
+                  render={<Link href="/login" />}
+                >
+                  Login
+                </Button>
 
-            <Button nativeButton={false} render={<Link href="/signup" />}>
-              Get started
-            </Button>
+                <Button nativeButton={false} render={<Link href="/signup" />}>
+                  Get started
+                </Button>
+              </>
+            )}
           </div>
         </nav>
       </header>
@@ -47,22 +62,34 @@ export default function HomePage() {
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Button
-              size="lg"
-              nativeButton={false}
-              render={<Link href="/signup" />}
-            >
-              Get started
-            </Button>
+            {isAuthenticated ? (
+              <Button
+                size="lg"
+                nativeButton={false}
+                render={<Link href="/dashboard" />}
+              >
+                Open Lorebase
+              </Button>
+            ) : (
+              <>
+                <Button
+                  size="lg"
+                  nativeButton={false}
+                  render={<Link href="/signup" />}
+                >
+                  Get started
+                </Button>
 
-            <Button
-              size="lg"
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/login" />}
-            >
-              Sign in
-            </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href="/login" />}
+                >
+                  Sign in
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -120,7 +147,6 @@ function Feature({
   return (
     <div className="rounded-xl border bg-background p-6">
       <h3 className="font-semibold">{title}</h3>
-
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
         {description}
       </p>
