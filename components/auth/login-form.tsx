@@ -57,6 +57,7 @@ export function LoginForm({
       }
 
       router.push("/dashboard");
+      router.refresh();
     } catch (err) {
       console.error(err);
       // TODO: implement flash message later
@@ -122,7 +123,7 @@ export function LoginForm({
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
                   <Link
-                    href="#"
+                    href="/forgot-password"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
                     Forgot your password?
