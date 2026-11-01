@@ -103,7 +103,7 @@ export function SidebarNavigation({
             <SidebarMenuButton
               size="lg"
               className="md:h-8 md:p-0"
-              tooltip="Lorebase"
+              tooltip="Shelf"
               render={<Link href="/dashboard" />}
             >
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
@@ -111,7 +111,7 @@ export function SidebarNavigation({
               </div>
 
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Lorebase</span>
+                <span className="truncate font-semibold">Shelf</span>
                 <span className="truncate text-xs">Knowledge Base</span>
               </div>
             </SidebarMenuButton>

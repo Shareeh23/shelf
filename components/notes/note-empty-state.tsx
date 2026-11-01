@@ -24,7 +24,7 @@ export function NoteEmptyState({ onCreateNote }: NoteEmptyStateProps) {
             <BookOpen />
           </EmptyMedia>
 
-          <EmptyTitle>Welcome to Lorebase</EmptyTitle>
+          <EmptyTitle>Welcome to Shelf</EmptyTitle>
 
           <EmptyDescription className="max-w-sm">
             Your knowledge base starts here. Create a note to capture ideas,

@@ -38,7 +38,7 @@ export function DashboardHeader({ view, isCreating, isEditing }: Props) {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem className="hidden md:block">
-            <BreadcrumbLink href="/dashboard">Lorebase</BreadcrumbLink>
+            <BreadcrumbLink href="/dashboard">Shelf</BreadcrumbLink>
           </BreadcrumbItem>
 
           <BreadcrumbSeparator className="hidden md:block" />

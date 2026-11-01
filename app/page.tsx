@@ -26,13 +26,13 @@ async function HomeContent() {
       <header className="border-b">
         <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="text-xl font-bold tracking-tight">
-            Lorebase<span className="text-red-600">.</span>
+            Shelf<span className="text-red-600">.</span>
           </Link>
 
           <div className="flex items-center gap-3">
             {isAuthenticated ? (
               <Button nativeButton={false} render={<Link href="/dashboard" />}>
-                Open Lorebase
+                Open Shelf
               </Button>
             ) : (
               <>
@@ -78,7 +78,7 @@ async function HomeContent() {
                 nativeButton={false}
                 render={<Link href="/dashboard" />}
               >
-                Open Lorebase
+                Open Shelf
               </Button>
             ) : (
               <>
@@ -139,8 +139,8 @@ async function HomeContent() {
       {/* Footer */}
       <footer className="border-t px-6 py-6">
         <div className="mx-auto flex max-w-6xl items-center justify-between text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">Lorebase.</span>
-          <span>© {new Date().getFullYear()} Lorebase</span>
+          <span className="font-semibold text-foreground">Shelf.</span>
+          <span>© {new Date().getFullYear()} Shelf</span>
         </div>
       </footer>
     </main>
