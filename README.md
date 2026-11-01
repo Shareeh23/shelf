@@ -28,8 +28,7 @@ Shelf is a personal knowledge management application for creating, organizing, a
 [Getting Started](#getting-started) •
 [Scripts](#available-scripts) •
 [Structure](#project-structure) •
-[Architecture](#architecture) •
-[Technical Debt](#technical-debt)
+[Architecture](#architecture) 
 
 </div>
 
@@ -221,9 +220,9 @@ Shelf is a personal knowledge management application for creating, organizing, a
 
 6. Initialize the database:
 
-  ```bash
-  pnpm db:migrate
-  ```
+```bash
+pnpm db:migrate
+```
 
 7. Start the development server:
 
@@ -391,7 +390,6 @@ shelf/
 ├── next.config.ts
 ├── package.json
 ├── pnpm-workspace.yaml
-├── TECH_DEBT.md
 └── tsconfig.json
 ```
 
@@ -529,13 +527,3 @@ Skeleton components provide loading placeholders while dynamic content is being 
 </div>
 
 ---
-
-<a id="technical-debt"></a>
-
-## 📝 Technical Debt
-
-Known technical debt and areas for improvement are documented in:
-
-```text
-TECH_DEBT.md
-```
